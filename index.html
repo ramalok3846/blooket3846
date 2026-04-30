@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Realtime Blooket Clone</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    /* 커스텀 스크롤바 & 패턴 배경 */
+    .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.3); border-radius: 20px; }
+    
+    .pattern-bg {
+      background-image: radial-gradient(circle at 20px 20px, white 2%, transparent 0);
+      background-size: 40px 40px;
+    }
+    
+    .room-bg {
+      background: repeating-linear-gradient(90deg, #e0f2fe, #e0f2fe 30px, #bae6fd 30px, #bae6fd 60px);
+    }
+
+    .animate-fade-in-up {
+      animation: fadeInUp 0.5s ease-out forwards;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="font-sans antialiased text-gray-800 bg-gray-100 overflow-x-hidden selection:bg-cyan-200">
+
+  <!-- ============================================== -->
+  <!-- 0. 로딩 화면 -->
+  <!-- ============================================== -->
+  <div id="loadingView" class="min-h-screen flex items-center justify-center bg-[#00c2cb] text-white font-black text-3xl animate-pulse z-50 fixed inset-0">
+    <i class="fas fa-spinner fa-spin mr-3"></i> Connecting to Server...
+  </div>
+
+  <!-- ============================================== -->
+  <!-- 1. 홈 화면 -->
+  <!-- ============================================== -->
+  <div id="homeView" class="hidden min-h-screen bg-[#00c2cb] flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div class="absolute inset-0 opacity-10 pattern-bg pointer-events-none"></div>
+    <div class="bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full relative z-10 text-center border-b-8 border-gray-200">
+      <h1 class="text-6xl font-black text-[#00c2cb] mb-10 tracking-wider drop-shadow-sm">Blooket</h1>
+      <div class="space-y-6">
+        <button id="btnCreateHost" class="w-full bg-[#8b25d2] text-white font-black text-2xl py-6 rounded-2xl border-b-4 border-[#6c1da3] hover:bg-[#7a20b8] active:translate-y-1 active:border-b-0 transition-all flex justify-center items-center gap-3 shadow-lg">
+          <i class="fas fa-cog text-3xl"></i> 호스트로 방 만들기
+        </button>
+        <div class="relative flex py-4 items-center">
+          <div class="flex-grow border-t border-gray-300"></div>
+          <span class="flex-shrink-0 mx-4 text-gray-400 font-bold">OR</span>
+          <div class="flex-grow border-t border-gray-300"></div>
+        </div>
+        <button id="btnJoinPlayer" class="w-full bg-white text-[#00c2cb] font-black text-2xl py-6 rounded-2xl border-4 border-[#00c2cb] border-b-8 hover:bg-cyan-50 active:translate-y-1 active:border-b-4 transition-all flex justify-center items-center gap-3 shadow-sm">
+          <i class="fas fa-users text-3xl"></i> 플레이어로 참여
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- 2. Host 화면 모음 -->
+  <!-- ============================================== -->
+  
+  <!-- 2-1. Host 대기실 -->
+  <div id="hostLobbyView" class="hidden min-h-screen bg-[#00c2cb] flex-col relative overflow-hidden">
+    <div class="bg-[#9c27b0] text-white p-6 md:p-10 flex flex-col items-center justify-center relative shadow-md">
+      <div class="text-2xl md:text-4xl font-bold mb-2">Go to <span class="underline font-black">play.blooket.com</span></div>
+      <div class="text-xl md:text-3xl font-bold mb-4">and enter Game ID:</div>
+      <div id="hostGameIdDisplay" class="text-8xl md:text-[150px] font-black drop-shadow-xl tracking-widest">000000</div>
+      <button class="btnExit absolute right-6 top-6 text-white/70 hover:text-white transition-colors text-3xl">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
+    </div>
+    <div class="flex-1 relative p-8">
+      <div class="absolute inset-0 opacity-20 pattern-bg" style="background-size: 60px 60px;"></div>
+      <div class="relative z-10 flex justify-between items-start max-w-7xl mx-auto">
+        <div class="flex items-center text-white text-5xl font-black drop-shadow-md">
+          <span id="hostPlayerCount" class="mr-4">0</span>
+          <i class="fas fa-user"></i>
+        </div>
+        <h1 class="text-8xl font-black text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.3)] absolute left-1/2 transform -translate-x-1/2 -top-4">Blooket</h1>
+        <button id="hostBtnStart" disabled class="bg-white text-gray-800 font-black text-4xl py-4 px-10 rounded-2xl shadow-[0_6px_0_0_#d1d5db] hover:translate-y-1 hover:shadow-[0_2px_0_0_#d1d5db] transition-all disabled:opacity-50 disabled:cursor-not-allowed">Start</button>
+      </div>
+      <div id="hostPlayerGrid" class="relative z-10 mt-20 flex flex-wrap gap-4 justify-center"></div>
+    </div>
+  </div>
+
+  <!-- 2-2. Host 게임 중 -->
+  <div id="hostPlayingView" class="hidden min-h-screen flex-col bg-gray-50">
+    <header class="h-16 bg-[#9c27b0] flex justify-between items-center px-6 text-white shadow-md z-10">
+      <div id="hostQuestionProgress" class="text-2xl font-black">Question 1/X</div>
+      <div class="flex items-center gap-4 text-xl font-bold">
+        <span id="hostPlayingGameId">ID: 000000</span>
+      </div>
+    </header>
+    <main class="flex-1 relative flex items-center justify-center p-8">
+      <h2 id="hostQuestionText" class="text-5xl md:text-7xl font-black text-gray-800 text-center max-w-5xl leading-tight">질문</h2>
+      <div class="absolute right-8 top-1/2 transform -translate-y-1/2 bg-white border-4 border-gray-100 rounded-3xl p-6 flex flex-col items-center shadow-xl w-48">
+        <div class="relative w-32 h-32 mb-4">
+          <svg viewBox="0 0 100 100" class="w-full h-full transform -rotate-90">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="#f3f4f6" stroke-width="10" />
+            <circle id="hostTimerCircle" cx="50" cy="50" r="45" fill="none" stroke="#f59e0b" stroke-width="10" stroke-dasharray="283" stroke-dashoffset="0" class="transition-all duration-1000 linear" />
+          </svg>
+          <div id="hostTimerText" class="absolute inset-0 flex items-center justify-center text-5xl font-black text-gray-800">15</div>
+        </div>
+        <div class="text-4xl font-black text-gray-800 mb-6">
+          <span id="hostAnsweredCount">0</span> <span id="hostTotalCount" class="text-gray-400 text-3xl">/ 0</span>
+        </div>
+        <button id="hostBtnSkip" class="w-full bg-[#00c2cb] text-white font-black text-xl py-3 rounded-xl border-b-4 border-[#008f96] hover:bg-[#00aeb6] active:translate-y-1 active:border-b-0 transition-all">Skip <i class="fas fa-chevron-right"></i></button>
+      </div>
+    </main>
+    <div id="hostOptionsGrid" class="h-[35vh] grid grid-cols-2 grid-rows-2 gap-2 p-2 bg-gray-200"></div>
+  </div>
+
+  <!-- 2-3. Host 결과 화면 -->
+  <div id="hostResultView" class="hidden min-h-screen flex-col bg-white p-8">
+    <h2 class="text-4xl font-black text-center mb-8 text-gray-800">결과 확인</h2>
+    <div id="hostResultGrid" class="flex-1 grid grid-cols-2 grid-rows-2 gap-4"></div>
+    <button id="hostBtnNext" class="mt-8 mx-auto w-64 bg-[#8b25d2] text-white font-black text-2xl py-5 rounded-2xl border-b-4 border-[#6c1da3] hover:bg-[#7a20b8] active:translate-y-1 active:border-b-0 transition-all">Next</button>
+  </div>
+
+  <!-- 2-4. Host 최종 랭킹 -->
+  <div id="hostEndView" class="hidden min-h-screen bg-[#8b25d2] flex-col items-center p-10 text-white">
+    <h1 class="text-6xl font-black mb-12 tracking-widest text-yellow-300 drop-shadow-lg">FINAL STANDINGS</h1>
+    <div id="hostLeaderboard" class="w-full max-w-4xl space-y-4"></div>
+    <button class="btnExit mt-12 bg-black text-white px-8 py-4 rounded-xl font-bold text-xl hover:bg-gray-800">Finish</button>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- 3. Player 화면 모음 -->
+  <!-- ============================================== -->
+
+  <!-- 3-1. Player 입장 (ID & Name) -->
+  <div id="playerJoinView" class="hidden min-h-screen bg-[#00c2cb] flex items-center justify-center p-4 relative">
+    <button class="btnExit absolute top-6 left-6 text-white hover:opacity-80 text-4xl"><i class="fas fa-sign-out-alt"></i></button>
+    <div class="bg-white rounded-2xl shadow-xl p-10 max-w-sm w-full text-center border-b-8 border-gray-200">
+      <h1 class="text-5xl font-black text-[#00c2cb] mb-8 drop-shadow-sm">Blooket</h1>
+      
+      <div id="playerJoinStep1">
+        <div id="playerErrorText" class="text-red-500 font-bold mb-3 hidden">잘못된 Game ID입니다.</div>
+        <input type="text" id="playerInputId" placeholder="Game ID" class="w-full text-center text-3xl font-black py-4 rounded-xl border-4 border-gray-200 focus:border-[#00c2cb] focus:outline-none transition-colors mb-4" />
+        <button id="playerBtnCheckId" class="w-full bg-[#00c2cb] text-white font-black text-2xl py-4 rounded-xl border-b-4 border-[#008f96] hover:bg-[#00aeb6] active:translate-y-1 active:border-b-0 transition-all"><i class="fas fa-chevron-right text-3xl"></i></button>
+      </div>
+
+      <div id="playerJoinStep2" class="hidden">
+        <input type="text" id="playerInputName" placeholder="Nickname" maxlength="12" class="w-full text-center text-3xl font-black py-4 rounded-xl border-4 border-gray-200 focus:border-[#00c2cb] focus:outline-none transition-colors mb-4" />
+        <button id="playerBtnJoinLobby" class="w-full bg-[#00c2cb] text-white font-black text-2xl py-4 rounded-xl border-b-4 border-[#008f96] hover:bg-[#00aeb6] active:translate-y-1 active:border-b-0 transition-all"><i class="fas fa-chevron-right text-3xl"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3-2. Player 대기실 (아바타 선택) -->
+  <div id="playerLobbyView" class="hidden min-h-screen bg-[#00c2cb] flex-col relative">
+    <header class="bg-[#8b25d2] text-white p-3 flex justify-between items-center shadow-md z-10 border-b-4 border-[#6c1da3]">
+      <div id="playerHeaderName" class="font-bold text-xl px-4 truncate max-w-[200px]">Nickname</div>
+      <div class="font-bold text-2xl drop-shadow-md">Waiting in Lobby</div>
+      <button class="btnExit px-4 text-white/80 hover:text-white text-2xl"><i class="fas fa-cog"></i></button>
+    </header>
+
+    <div class="flex-1 flex flex-col lg:flex-row p-4 gap-4 max-w-[1400px] mx-auto w-full h-[calc(100vh-80px)]">
+      <!-- 아바타 그리드 -->
+      <div class="flex-[7] bg-[#7c1ec2] rounded-xl border-4 border-[#9c3ff2] p-4 flex flex-col overflow-hidden relative shadow-inner">
+        <div class="overflow-y-auto pr-2 custom-scrollbar flex-1">
+          <div id="playerAvatarGrid" class="grid grid-cols-5 md:grid-cols-7 lg:grid-cols-9 gap-2"></div>
+        </div>
+        <div class="absolute right-1 top-4 bottom-4 w-2 bg-white/20 rounded-full pointer-events-none"></div>
+      </div>
+
+      <!-- 프리뷰 패널 -->
+      <div class="flex-[3] flex flex-col gap-4 min-w-[300px]">
+        <div class="bg-white rounded-xl border-4 border-gray-200 p-2 flex flex-col items-center justify-center flex-1 relative overflow-hidden shadow-lg room-bg">
+          <div class="absolute inset-x-0 bottom-0 h-1/4 bg-[#d97706] border-t-8 border-[#b45309]"></div>
+          <div class="relative z-10 flex flex-col items-center w-full">
+            <h2 id="previewAvatarName" class="font-black text-4xl text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] tracking-wide mb-1 text-center">Name</h2>
+            <span id="previewAvatarRarity" class="font-bold text-xl text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] mb-6">Rarity</span>
+            <div class="relative mt-8">
+              <div id="previewAvatarIcon" class="w-40 h-40 rounded-3xl flex items-center justify-center text-8xl shadow-xl border-4 border-white relative z-10 transform translate-y-4 bg-gray-200">?</div>
+              <!-- 침대 쿠션 UI -->
+              <div class="w-56 h-20 bg-[#ef4444] rounded-[60px_60px_20px_20px] shadow-[0_10px_0_0_#b91c1c] absolute -bottom-6 -left-8 z-0"></div>
+              <div class="w-48 h-12 bg-[#fca5a5] rounded-[40px_40px_10px_10px] absolute -bottom-2 -left-4 z-0"></div>
+            </div>
+          </div>
+        </div>
+        <div class="w-full bg-[#8b25d2] text-white font-black text-2xl py-5 rounded-xl shadow-md flex items-center justify-center gap-3 opacity-80 cursor-wait">
+           <i class="fas fa-lock text-xl"></i> Waiting for Host
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3-3. Player 인게임 -->
+  <div id="playerPlayingView" class="hidden min-h-screen flex-col bg-gray-100">
+    <header class="bg-white p-4 shadow-sm flex justify-between items-center px-6 border-b-2 border-gray-200 z-10">
+      <div class="flex items-center gap-3">
+        <span id="playerIngameAvatar" class="text-2xl w-10 h-10 flex items-center justify-center rounded-lg border-2 border-black/10 bg-gray-200">?</span>
+        <span id="playerIngameName" class="font-bold text-lg text-gray-700">Nickname</span>
+      </div>
+      <div class="bg-yellow-100 text-yellow-600 px-4 py-1 rounded-xl font-black text-lg border-b-4 border-yellow-200">
+        ⭐ <span id="playerIngameScore">0</span>
+      </div>
+    </header>
+    
+    <div id="playerQuestionContainer" class="bg-white p-6 text-center shadow-sm">
+       <h3 id="playerQuestionText" class="text-2xl font-bold text-gray-800">질문</h3>
+    </div>
+
+    <!-- 대기 스피너 -->
+    <div id="playerWaitingBox" class="hidden flex-1 flex flex-col items-center justify-center">
+      <div class="w-20 h-20 border-8 border-[#8b25d2] border-t-transparent rounded-full animate-spin mb-6"></div>
+      <h2 class="text-3xl font-black text-gray-600">Waiting for others...</h2>
+    </div>
+
+    <!-- 4색 버튼 영역 -->
+    <div id="playerOptionsGrid" class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 p-2"></div>
+  </div>
+
+  <!-- 3-4. Player 정답/오답 -->
+  <div id="playerResultView" class="hidden min-h-screen flex-col items-center justify-center text-white">
+    <div class="text-center animate-bounce">
+      <div id="playerResultIcon" class="text-8xl mb-6 bg-white/20 inline-block p-6 rounded-full shadow-inner">✅</div>
+      <h2 id="playerResultText" class="text-6xl font-black mb-6 drop-shadow-md">Correct!</h2>
+      <div id="playerResultPoints" class="hidden bg-black/20 rounded-2xl px-8 py-4 font-black text-4xl border-2 border-white/20 shadow-lg mt-4 inline-block">
+        + Points ⭐
+      </div>
+    </div>
+  </div>
+
+  <!-- 3-5. Player 최종 결과 -->
+  <div id="playerEndView" class="hidden min-h-screen bg-[#00c2cb] flex-col items-center justify-center p-4 text-white">
+    <h1 class="text-5xl font-black mb-10 tracking-widest text-yellow-300 drop-shadow-lg" style="-webkit-text-stroke: 2px black;">GAME OVER</h1>
+    <div class="bg-white rounded-3xl p-10 text-center flex flex-col items-center shadow-2xl border-b-8 border-gray-200 w-full max-w-md">
+      <div id="playerFinalAvatar" class="text-7xl w-32 h-32 flex items-center justify-center rounded-2xl mb-6 border-4 border-black/10 shadow-inner bg-gray-200">?</div>
+      <h2 id="playerFinalName" class="text-3xl font-black text-gray-800 mb-2">Nickname</h2>
+      <div class="text-gray-400 font-bold mb-6 uppercase tracking-wider">Final Score</div>
+      <div class="text-5xl font-black text-[#00c2cb] flex items-center justify-center gap-3 bg-cyan-50 px-8 py-6 rounded-2xl w-full border-2 border-cyan-100">
+        ⭐ <span id="playerFinalScore">0</span>
+      </div>
+    </div>
+    <button class="btnExit mt-10 bg-white text-[#00c2cb] font-black text-xl py-4 px-12 rounded-xl shadow-lg border-b-4 border-gray-200 hover:bg-gray-50 active:translate-y-1 active:border-b-0 transition-all">
+      Exit to Home
+    </button>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- Javascript 로직 (Firebase + UI 제어) -->
+  <!-- ============================================== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // 1. Firebase 설정 (규칙 준수)
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+       // 기본 config 세팅 방지 (런타임에서 제공됨)
+    };
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'blooket-clone-vanilla';
+
+    // 2. 초기 데이터 구성
+    const UNLOCKED_BLOOKS = [
+      { id: 1, emoji: "🐤", name: "Chick", rarity: "Common", bg: "bg-[#fcd34d]" },
+      { id: 2, emoji: "🐔", name: "Chicken", rarity: "Common", bg: "bg-[#f8fafc]" },
+      { id: 3, emoji: "🐮", name: "Cow", rarity: "Common", bg: "bg-[#e2e8f0]" },
+      { id: 4, emoji: "🐐", name: "Goat", rarity: "Common", bg: "bg-[#d6d3d1]" },
+      { id: 5, emoji: "🐴", name: "Horse", rarity: "Common", bg: "bg-[#b45309]" },
+      { id: 6, emoji: "🐷", name: "Pig", rarity: "Common", bg: "bg-[#fbcfe8]" },
+      { id: 7, emoji: "🐑", name: "Sheep", rarity: "Common", bg: "bg-[#f1f5f9]" },
+      { id: 8, emoji: "🦆", name: "Duck", rarity: "Uncommon", bg: "bg-[#34d399]" },
+      { id: 9, emoji: "🐶", name: "Dog", rarity: "Common", bg: "bg-[#fdba74]" },
+      { id: 10, emoji: "🐱", name: "Cat", rarity: "Common", bg: "bg-[#fcd34d]" },
+      { id: 11, emoji: "🐰", name: "Rabbit", rarity: "Common", bg: "bg-[#f8fafc]" },
+      { id: 12, emoji: "🐠", name: "Goldfish", rarity: "Uncommon", bg: "bg-[#60a5fa]" },
+      { id: 14, emoji: "🐢", name: "Turtle", rarity: "Uncommon", bg: "bg-[#4ade80]" },
+      { id: 16, emoji: "🐺", name: "Husky", rarity: "Rare", bg: "bg-[#94a3b8]" },
+      { id: 19, emoji: "🦊", name: "Fox", rarity: "Rare", bg: "bg-[#fb923c]" },
+      { id: 24, emoji: "🐼", name: "Panda", rarity: "Epic", bg: "bg-[#cbd5e1]" },
+      { id: 26, emoji: "🐯", name: "Tiger", rarity: "Epic", bg: "bg-[#f59e0b]" },
+      { id: 38, emoji: "🐧", name: "Penguin", rarity: "Legendary", bg: "bg-[#1e293b]" },
+    ];
+    const LOCKED_BLOOKS = Array(60).fill({ locked: true });
+    
+    const OPTION_COLORS = [
+      'bg-[#f39c12] hover:bg-[#e67e22]', 'bg-[#3498db] hover:bg-[#2980b9]',
+      'bg-[#2ecc71] hover:bg-[#27ae60]', 'bg-[#e74c3c] hover:bg-[#c0392b]'
+    ];
+    
+    const QUESTIONS = [
+      { question: "다음 중 과일인 것은?", options: ["orange", "apple", "sa and gua", "sagua"], correct: 1 },
+      { question: "대한민국의 수도는?", options: ["부산", "인천", "서울", "제주"], correct: 2 },
+      { question: "물(H2O)을 구성하는 원소가 아닌 것은?", options: ["수소", "산소", "탄소", "없음"], correct: 2 }
+    ];
+    const TIME_LIMIT = 15;
+
+    // 3. 전역 상태 변수
+    let currentUser = null;
+    let currentGameId = null;
+    let currentGameData = null;
+    let currentPlayerData = null;
+    let currentPlayersList = [];
+    let hostTimerInterval = null;
+    let selectedBlook = UNLOCKED_BLOOKS[0];
+    
+    // Firestore 리스너 해제 함수들
+    let unsubGame = null;
+    let unsubPlayers = null;
+    let unsubMe = null;
+
+    // 4. 유틸리티 함수
+    const switchView = (viewId) => {
+      document.querySelectorAll('body > div').forEach(div => div.classList.add('hidden'));
+      document.getElementById(viewId).classList.remove('hidden');
+      document.getElementById(viewId).classList.add('flex');
+    };
+
+    const cleanupListeners = () => {
+      if (unsubGame) unsubGame();
+      if (unsubPlayers) unsubPlayers();
+      if (unsubMe) unsubMe();
+      if (hostTimerInterval) clearInterval(hostTimerInterval);
+      unsubGame = unsubPlayers = unsubMe = hostTimerInterval = null;
+      currentGameId = currentGameData = currentPlayerData = null;
+      currentPlayersList = [];
+    };
+
+    const exitToHome = async () => {
+      // 내가 호스트였다면 방 폭파
+      if (currentGameId && currentGameData && currentGameData.hostId === currentUser.uid) {
+        try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', currentGameId)); } catch(e){}
+      }
+      cleanupListeners();
+      switchView('homeView');
+    };
+
+    // 공통 나가기 버튼 이벤트 바인딩
+    document.querySelectorAll('.btnExit').forEach(btn => {
+      btn.addEventListener('click', exitToHome);
+    });
+
+    // 5. Firebase 인증 (앱 진입점)
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) { console.error("Auth Error:", err); }
+    };
+    initAuth();
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUser = user;
+        switchView('homeView');
+      }
+    });
+
+    // ==============================================
+    // [호스트 로직]
+    // ==============================================
+    document.getElementById('btnCreateHost').addEventListener('click', async () => {
+      cleanupListeners();
+      currentGameId = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', currentGameId);
+      await setDoc(gameRef, {
+        id: currentGameId,
+        hostId: currentUser.uid,
+        status: 'lobby',
+        currentQuestionIndex: 0,
+        deadline: 0,
+        createdAt: Date.now()
+      });
+
+      // 리스너 등록
+      unsubGame = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'games'), (snapshot) => {
+        const allGames = snapshot.docs.map(d => d.data());
+        currentGameData = allGames.find(g => g.id === currentGameId);
+        if (currentGameData) handleHostStateChange();
+      });
+
+      unsubPlayers = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'players'), (snapshot) => {
+        const allPlayers = snapshot.docs.map(d => d.data());
+        currentPlayersList = allPlayers.filter(p => p.gameId === currentGameId);
+        updateHostLobbyPlayers();
+      });
+
+      document.getElementById('hostGameIdDisplay').innerText = currentGameId;
+      switchView('hostLobbyView');
+    });
+
+    const updateHostLobbyPlayers = () => {
+      if(currentGameData && currentGameData.status !== 'lobby') return; // 게임중이면 UI 렌더 안함
+      
+      document.getElementById('hostPlayerCount').innerText = currentPlayersList.length;
+      document.getElementById('hostBtnStart').disabled = currentPlayersList.length === 0;
+      
+      const grid = document.getElementById('hostPlayerGrid');
+      grid.innerHTML = currentPlayersList.map(p => `
+        <div class="bg-black/20 text-white font-bold text-2xl px-6 py-3 rounded-full backdrop-blur-sm border-2 border-white/30 animate-fade-in-up">
+          ${p.name}
+        </div>
+      `).join('');
+    };
+
+    document.getElementById('hostBtnStart').addEventListener('click', async () => {
+      if (currentPlayersList.length === 0) return;
+      const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', currentGameId);
+      
+      // 플레이어 상태 초기화
+      currentPlayersList.forEach(p => {
+        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', p.id), { hasAnswered: false, lastAnswerCorrect: false });
+      });
+
+      await updateDoc(gameRef, { 
+        status: 'playing', 
+        currentQuestionIndex: 0,
+        deadline: Date.now() + (TIME_LIMIT * 1000)
+      });
+    });
+
+    const handleHostStateChange = () => {
+      if(!currentGameData) return;
+      
+      if (currentGameData.status === 'playing') {
+        switchView('hostPlayingView');
+        startHostTimer();
+        renderHostQuestion();
+      } else if (currentGameData.status === 'result') {
+        switchView('hostResultView');
+        renderHostResult();
+      } else if (currentGameData.status === 'end') {
+        switchView('hostEndView');
+        renderHostEnd();
+      }
+    };
+
+    const startHostTimer = () => {
+      if (hostTimerInterval) clearInterval(hostTimerInterval);
+      
+      hostTimerInterval = setInterval(() => {
+        const remaining = Math.max(0, Math.ceil((currentGameData.deadline - Date.now()) / 1000));
+        document.getElementById('hostTimerText').innerText = remaining;
+        
+        // 원형 애니메이션
+        const circle = document.getElementById('hostTimerCircle');
+        const offset = 283 - (283 * (remaining / TIME_LIMIT));
+        circle.style.strokeDashoffset = offset;
+
+        // 제출 인원 체크
+        const answeredCount = currentPlayersList.filter(p => p.hasAnswered).length;
+        document.getElementById('hostAnsweredCount').innerText = answeredCount;
+        document.getElementById('hostTotalCount').innerText = `/ ${currentPlayersList.length}`;
+
+        if ((remaining === 0 || (answeredCount > 0 && answeredCount === currentPlayersList.length)) && currentGameData.status === 'playing') {
+          clearInterval(hostTimerInterval);
+          updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', currentGameId), { status: 'result' });
+        }
+      }, 500); // UI 반응성을 위해 0.5초 간격 체크
+    };
+
+    const renderHostQuestion = () => {
+      const q = QUESTIONS[currentGameData.currentQuestionIndex];
+      document.getElementById('hostQuestionProgress').innerText = `Question ${currentGameData.currentQuestionIndex + 1}/${QUESTIONS.length}`;
+      document.getElementById('hostPlayingGameId').innerText = `ID: ${currentGameId}`;
+      document.getElementById('hostQuestionText').innerText = q.question;
+      
+      const optsGrid = document.getElementById('hostOptionsGrid');
+      optsGrid.innerHTML = q.options.map((opt, idx) => `
+        <div class="${OPTION_COLORS[idx]} flex items-center justify-center text-white text-3xl md:text-5xl font-bold shadow-inner">
+          ${opt}
+        </div>
+      `).join('');
+    };
+
+    document.getElementById('hostBtnSkip').addEventListener('click', () => {
+      updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'games', currentGameId), { status: 'result' });
+    });
+
+    const renderHostResult = () => {
+      const q = QUESTIONS[currentGameData.currentQuestionIndex];
+      const resGrid = document.getElementById('hostResultGrid');
+      
+      resGrid.innerHTML = q.options.map((opt, idx) => {
+        const isCorrect = idx === q.correct;
+        const count = currentPlayersList.filter(p => p.lastAnswerIdx === idx).length;
+        return `
+          <div class="${OPTION_COLORS[idx]} flex flex-col items-center justify-center rounded-2xl p-6 ${isCorrect ? 'ring-8 ring-yellow-400 scale-[1.02] z-10' : 'opacity-60'}">
+            <div class="text-3xl text-white font-bold mb-4">${opt}</div>
+            ${isCorrect ? '<i class="fas fa-check text-[60px] text-yellow-300 mb-2"></i>' : ''}
+            <div class="text-7xl font-black text-white">${count}</div>
+          </div>
+        `;
+      }).join('');
+    };
+
+    document.getElementById('hostBtnNext').addEventListener('click', async () => {
+      const nextIdx = currentGameData.currentQuestionIndex + 1;
+      const gameRef = doc(db, 'artifacts', appId, 'public', 'data', 'games', currentGameId);
+      
+      if (nextIdx >= QUESTIONS.length) {
+        await updateDoc(gameRef, { status: 'end' });
+      } else {
+        currentPlayersList.forEach(p => {
+          updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', p.id), { hasAnswered: false });
+        });
+        await updateDoc(gameRef, { 
+          status: 'playing', 
+          currentQuestionIndex: nextIdx,
+          deadline: Date.now() + (TIME_LIMIT * 1000)
+        });
+      }
+    });
+
+    const renderHostEnd = () => {
+      const sorted = [...currentPlayersList].sort((a, b) => b.score - a.score);
+      const board = document.getElementById('hostLeaderboard');
+      
+      board.innerHTML = sorted.map((p, idx) => {
+        let badgeColor = 'bg-gray-100 text-gray-400';
+        if (idx === 0) badgeColor = 'bg-yellow-400 text-white';
+        else if (idx === 1) badgeColor = 'bg-gray-300 text-white';
+        else if (idx === 2) badgeColor = 'bg-orange-400 text-white';
+
+        return `
+          <div class="bg-white rounded-2xl p-6 flex items-center justify-between shadow-lg text-gray-800 transform transition-transform hover:scale-105">
+            <div class="flex items-center gap-6">
+              <div class="w-16 h-16 rounded-xl flex items-center justify-center text-4xl font-black ${badgeColor}">${idx + 1}</div>
+              <div class="text-4xl px-2 py-1 rounded-lg ${p.avatar.bg}">${p.avatar.emoji}</div>
+              <div class="text-3xl font-black">${p.name}</div>
+            </div>
+            <div class="text-4xl font-black text-[#00c2cb]">⭐ ${p.score}</div>
+          </div>
+        `;
+      }).join('');
+    };
+
+
+    // ==============================================
+    // [플레이어 로직]
+    // ==============================================
+    document.getElementById('btnJoinPlayer').addEventListener('click', () => {
+      cleanupListeners();
+      document.getElementById('playerJoinStep1').classList.remove('hidden');
+      document.getElementById('playerJoinStep2').classList.add('hidden');
+      document.getElementById('playerInputId').value = '';
+      document.getElementById('playerInputName').value = '';
+      document.getElementById('playerErrorText').classList.add('hidden');
+      switchView('playerJoinView');
+    });
+
+    document.getElementById('playerBtnCheckId').addEventListener('click', async () => {
+      const inputId = document.getElementById('playerInputId').value.trim();
+      if (!inputId) return;
+
+      onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'games'), (snapshot) => {
+        if(currentGameData) return; // 이미 연결되었다면 무시
+        const allGames = snapshot.docs.map(d => d.data());
+        const target = allGames.find(g => g.id === inputId && g.status !== 'end');
+        
+        if (target) {
+          currentGameData = target;
+          currentGameId = target.id;
+          document.getElementById('playerJoinStep1').classList.add('hidden');
+          document.getElementById('playerJoinStep2').classList.remove('hidden');
+        } else {
+          document.getElementById('playerErrorText').classList.remove('hidden');
+        }
+      });
+    });
+
+    document.getElementById('playerBtnJoinLobby').addEventListener('click', async () => {
+      const name = document.getElementById('playerInputName').value.trim();
+      if (!name || !currentGameData) return;
+
+      selectedBlook = UNLOCKED_BLOOKS[0];
+      const pRef = doc(db, 'artifacts', appId, 'public', 'data', 'players', currentUser.uid);
+      
+      const newPlayer = {
+        id: currentUser.uid,
+        gameId: currentGameId,
+        name: name,
+        avatar: selectedBlook,
+        score: 0,
+        hasAnswered: false,
+        lastAnswerCorrect: false,
+        lastAnswerIdx: -1,
+        joinedAt: Date.now()
+      };
+      
+      await setDoc(pRef, newPlayer);
+      currentPlayerData = newPlayer;
+
+      // 내 데이터 실시간
+      unsubMe = onSnapshot(pRef, (docSnap) => {
+        if (docSnap.exists()) {
+          currentPlayerData = docSnap.data();
+          updatePlayerUI();
+        }
+      });
+
+      // 게임 상태 실시간
+      unsubGame = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'games', currentGameId), (docSnap) => {
+        if (docSnap.exists()) {
+          currentGameData = docSnap.data();
+          handlePlayerStateChange();
+        }
+      });
+
+      renderPlayerAvatarGrid();
+      updatePlayerPreview();
+      switchView('playerLobbyView');
+    });
+
+    const renderPlayerAvatarGrid = () => {
+      const grid = document.getElementById('playerAvatarGrid');
+      let html = UNLOCKED_BLOOKS.map(b => `
+        <button class="blook-btn aspect-square rounded-lg flex items-center justify-center text-4xl shadow-sm transition-transform hover:scale-105 hover:z-10 ${b.bg}" data-id="${b.id}">
+          ${b.emoji}
+        </button>
+      `).join('');
+      
+      html += LOCKED_BLOOKS.map(() => `
+        <div class="aspect-square rounded-lg bg-[#1a062e] flex items-center justify-center text-gray-500 shadow-inner">
+          <i class="fas fa-lock text-xl"></i>
+        </div>
+      `).join('');
+      
+      grid.innerHTML = html;
+
+      // 클릭 이벤트
+      grid.querySelectorAll('.blook-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const targetBtn = e.target.closest('button');
+          const id = parseInt(targetBtn.dataset.id);
+          const blook = UNLOCKED_BLOOKS.find(b => b.id === id);
+          if (blook) {
+            selectedBlook = blook;
+            updatePlayerPreview();
+            if (currentGameData && currentGameData.status === 'lobby') {
+              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', currentUser.uid), { avatar: blook });
+            }
+          }
+        });
+      });
+    };
+
+    const updatePlayerPreview = () => {
+      document.getElementById('playerHeaderName').innerText = currentPlayerData.name;
+      document.getElementById('previewAvatarName').innerText = selectedBlook.name;
+      document.getElementById('previewAvatarRarity').innerText = selectedBlook.rarity;
+      
+      const iconBox = document.getElementById('previewAvatarIcon');
+      iconBox.innerText = selectedBlook.emoji;
+      iconBox.className = `w-40 h-40 rounded-3xl flex items-center justify-center text-8xl shadow-xl border-4 border-white relative z-10 transform translate-y-4 ${selectedBlook.bg}`;
+    };
+
+    const handlePlayerStateChange = () => {
+      if(!currentGameData || !currentPlayerData) return;
+
+      if (currentGameData.status === 'playing') {
+        switchView('playerPlayingView');
+        renderPlayerPlaying();
+      } else if (currentGameData.status === 'result') {
+        switchView('playerResultView');
+        renderPlayerResult();
+      } else if (currentGameData.status === 'end') {
+        switchView('playerEndView');
+        renderPlayerEnd();
+      }
+    };
+
+    const updatePlayerUI = () => {
+      if (currentGameData && currentGameData.status === 'playing') {
+        renderPlayerPlaying(); // 답변 여부에 따른 UI 업데이트
+      }
+    };
+
+    const renderPlayerPlaying = () => {
+      const q = QUESTIONS[currentGameData.currentQuestionIndex];
+      
+      // 헤더 설정
+      document.getElementById('playerIngameName').innerText = currentPlayerData.name;
+      document.getElementById('playerIngameScore').innerText = currentPlayerData.score;
+      const avatarBox = document.getElementById('playerIngameAvatar');
+      avatarBox.innerText = currentPlayerData.avatar.emoji;
+      avatarBox.className = `text-2xl w-10 h-10 flex items-center justify-center rounded-lg border-2 border-black/10 ${currentPlayerData.avatar.bg}`;
+
+      document.getElementById('playerQuestionText').innerText = q.question;
+
+      if (currentPlayerData.hasAnswered) {
+        document.getElementById('playerQuestionContainer').classList.add('hidden');
+        document.getElementById('playerOptionsGrid').classList.add('hidden');
+        document.getElementById('playerWaitingBox').classList.remove('hidden');
+      } else {
+        document.getElementById('playerWaitingBox').classList.add('hidden');
+        document.getElementById('playerQuestionContainer').classList.remove('hidden');
+        const grid = document.getElementById('playerOptionsGrid');
+        grid.classList.remove('hidden');
+        grid.innerHTML = q.options.map((opt, idx) => `
+          <button class="ans-btn ${OPTION_COLORS[idx]} transition-all active:scale-[0.98] text-white text-3xl font-bold shadow-md rounded-xl flex items-center justify-center min-h-[150px]" data-idx="${idx}">
+            ${opt}
+          </button>
+        `).join('');
+
+        grid.querySelectorAll('.ans-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            if(currentPlayerData.hasAnswered) return;
+            const idx = parseInt(e.target.closest('button').dataset.idx);
+            const isCorrect = (idx === q.correct);
+            const remaining = Math.max(0, Math.ceil((currentGameData.deadline - Date.now()) / 1000));
+            const gained = isCorrect ? Math.round((remaining / TIME_LIMIT) * 50) + 100 : 0;
+
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', currentUser.uid), {
+              hasAnswered: true,
+              lastAnswerCorrect: isCorrect,
+              lastAnswerIdx: idx,
+              score: currentPlayerData.score + gained
+            });
+          });
+        });
+      }
+    };
+
+    const renderPlayerResult = () => {
+      const view = document.getElementById('playerResultView');
+      const icon = document.getElementById('playerResultIcon');
+      const text = document.getElementById('playerResultText');
+      const points = document.getElementById('playerResultPoints');
+
+      if (currentPlayerData.lastAnswerCorrect) {
+        view.classList.remove('bg-[#e63946]');
+        view.classList.add('bg-[#48a648]');
+        icon.innerText = '✅';
+        text.innerText = 'Correct!';
+        points.classList.remove('hidden');
+      } else {
+        view.classList.remove('bg-[#48a648]');
+        view.classList.add('bg-[#e63946]');
+        icon.innerText = '❌';
+        text.innerText = 'Incorrect!';
+        points.classList.add('hidden');
+      }
+    };
+
+    const renderPlayerEnd = () => {
+      document.getElementById('playerFinalName').innerText = currentPlayerData.name;
+      document.getElementById('playerFinalScore').innerText = currentPlayerData.score;
+      const avatarBox = document.getElementById('playerFinalAvatar');
+      avatarBox.innerText = currentPlayerData.avatar.emoji;
+      avatarBox.className = `text-7xl w-32 h-32 flex items-center justify-center rounded-2xl mb-6 border-4 border-black/10 shadow-inner ${currentPlayerData.avatar.bg}`;
+    };
+
+  </script>
+</body>
+</html>
