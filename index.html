@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blooket P3846 Edition</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    /* 커스텀 스크롤바 */
+    .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.3); border-radius: 20px; }
+    
+    .pattern-bg {
+      background-image: radial-gradient(circle at 20px 20px, rgba(255,255,255,0.05) 2%, transparent 0);
+      background-size: 40px 40px;
+    }
+    
+    .room-bg {
+      background: repeating-linear-gradient(90deg, #1e1b4b, #1e1b4b 30px, #312e81 30px, #312e81 60px);
+    }
+
+    .theme-gradient {
+      background: linear-gradient(135deg, #0f172a 0%, #312e81 50%, #1e1b4b 100%);
+    }
+
+    /* 애니메이션 유틸리티 */
+    .animate-fade-in-up { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 커스텀 셀렉트 드롭다운 */
+    .custom-dropdown-content {
+      transform-origin: top;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    .custom-dropdown-content.open { transform: scaleY(1); opacity: 1; }
+    .custom-dropdown-content.closed { transform: scaleY(0); opacity: 0; pointer-events: none; }
+
+    /* 심박수 펄스 (목숨 표현용) */
+    .heart-beat { animation: heartbeat 1.5s infinite; }
+    @keyframes heartbeat {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+  </style>
+</head>
+<body class="font-sans antialiased text-gray-800 bg-gray-900 overflow-x-hidden selection:bg-purple-500 selection:text-white">
+
+  <audio id="bgMusic" loop></audio>
+  
+  <!-- 전역 우측 상단 전체화면 토글 버튼 -->
+  <button id="btnGlobalFullscreen" class="fixed top-6 right-6 z-[999999] text-white/50 hover:text-white transition-colors text-3xl drop-shadow-md mix-blend-difference" title="전체화면 전환">
+    <i class="fas fa-expand"></i>
+  </button>
+
+  <!-- 관리자 모드 트리거 영역 (우측 하단 - 완전히 투명하고 방해되지 않음) -->
+  <div id="adminTriggerZone" class="fixed bottom-0 right-0 w-32 h-32 z-[99999] cursor-default select-none opacity-0" onselectstart="return false;"></div>
+
+  <!-- ============================================== -->
+  <!-- [커스텀 팝업 UI] (alert, confirm, prompt 대체) -->
+  <!-- ============================================== -->
+  <div id="customAlertModal" class="hidden fixed inset-0 bg-black/70 z-[9999999] items-center justify-center backdrop-blur-sm px-4">
+    <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-b-8 border-blue-500 animate-fade-in-up">
+      <i class="fas fa-info-circle text-6xl text-blue-500 mb-4 drop-shadow-md"></i>
+      <h2 id="customAlertMsg" class="text-xl font-black text-gray-800 mb-8 break-keep leading-relaxed">메시지</h2>
+      <button id="customAlertBtn" class="w-full bg-blue-500 text-white font-black text-xl py-4 rounded-xl border-b-4 border-blue-700 hover:bg-blue-600 active:translate-y-1 active:border-b-0 transition-all shadow-lg">확인</button>
+    </div>
+  </div>
+
+  <div id="customConfirmModal" class="hidden fixed inset-0 bg-black/70 z-[9999999] items-center justify-center backdrop-blur-sm px-4">
+    <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-b-8 border-red-500 animate-fade-in-up">
+      <i class="fas fa-exclamation-triangle text-6xl text-red-500 mb-4 drop-shadow-md"></i>
+      <h2 id="customConfirmMsg" class="text-xl font-black text-gray-800 mb-8 break-keep leading-relaxed">메시지</h2>
+      <div class="flex gap-3">
+        <button id="customConfirmCancel" class="flex-1 bg-gray-200 text-gray-700 font-black text-lg py-4 rounded-xl border-b-4 border-gray-300 hover:bg-gray-300 active:translate-y-1 active:border-b-0 transition-all">취소</button>
+        <button id="customConfirmOk" class="flex-1 bg-red-500 text-white font-black text-lg py-4 rounded-xl border-b-4 border-red-700 hover:bg-red-600 active:translate-y-1 active:border-b-0 transition-all shadow-md">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="customPromptModal" class="hidden fixed inset-0 bg-black/70 z-[9999999] items-center justify-center backdrop-blur-sm px-4">
+    <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-b-8 border-purple-500 animate-fade-in-up">
+      <i class="fas fa-keyboard text-6xl text-purple-500 mb-4 drop-shadow-md"></i>
+      <h2 id="customPromptMsg" class="text-xl font-black text-gray-800 mb-4 break-keep">값을 입력하세요</h2>
+      <input type="text" id="customPromptInput" class="w-full border-4 border-gray-200 rounded-xl p-4 font-black text-center text-xl focus:border-purple-500 focus:outline-none mb-8 bg-gray-50" />
+      <div class="flex gap-3">
+        <button id="customPromptCancel" class="flex-1 bg-gray-200 text-gray-700 font-black text-lg py-4 rounded-xl border-b-4 border-gray-300 hover:bg-gray-300 active:translate-y-1 active:border-b-0 transition-all">취소</button>
+        <button id="customPromptOk" class="flex-1 bg-purple-500 text-white font-black text-lg py-4 rounded-xl border-b-4 border-purple-700 hover:bg-purple-600 active:translate-y-1 active:border-b-0 transition-all shadow-md">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- 관리자 로그인 및 모달 -->
+  <!-- ============================================== -->
+  <div id="adminLoginModal" class="hidden fixed inset-0 bg-black/60 z-[100000] flex items-center justify-center backdrop-blur-sm px-4">
+    <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-b-8 border-[#8b25d2]">
+      <h2 class="text-3xl font-black text-[#8b25d2] mb-6">Admin Login</h2>
+      <input type="password" id="adminPasswordInput" placeholder="비밀번호 입력" class="w-full text-center text-xl font-bold py-3 rounded-xl border-4 border-gray-200 focus:border-[#8b25d2] focus:outline-none mb-6" />
+      <div class="flex gap-3">
+        <button id="btnAdminLoginCancel" class="flex-1 bg-gray-200 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-300 border-b-4 border-gray-300 active:translate-y-1 active:border-b-0">취소</button>
+        <button id="btnAdminLoginSubmit" class="flex-1 bg-[#8b25d2] text-white font-bold py-3 rounded-xl border-b-4 border-[#6c1da3] active:translate-y-1 active:border-b-0">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 퀴즈 편집기 모달 -->
+  <div id="quizEditorModal" class="hidden fixed inset-0 bg-black/80 z-[100001] flex items-center justify-center backdrop-blur-sm p-4">
+    <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <h2 class="text-2xl font-black text-gray-800 mb-6" id="quizEditorTitle">문제 편집</h2>
+      <input type="hidden" id="quizEditorIndex" value="-1" />
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block font-bold text-gray-600 mb-1">문제 내용</label>
+          <input type="text" id="quizEditorText" class="w-full border-2 border-gray-300 rounded-xl p-3 font-bold" />
+        </div>
+        <div>
+          <label class="block font-bold text-gray-600 mb-1">보기 1 (주황)</label>
+          <input type="text" id="quizEditorOpt0" class="w-full border-2 border-orange-300 rounded-xl p-2 font-bold" />
+        </div>
+        <div>
+          <label class="block font-bold text-gray-600 mb-1">보기 2 (파랑)</label>
+          <input type="text" id="quizEditorOpt1" class="w-full border-2 border-blue-300 rounded-xl p-2 font-bold" />
+        </div>
+        <div>
+          <label class="block font-bold text-gray-600 mb-1">보기 3 (초록)</label>
+          <input type="text" id="quizEditorOpt2" class="w-full border-2 border-green-300 rounded-xl p-2 font-bold" />
+        </div>
+        <div>
+          <label class="block font-bold text-gray-600 mb-1">보기 4 (빨강)</label>
+          <input type="text" id="quizEditorOpt3" class="w-full border-2 border-red-300 rounded-xl p-2 font-bold" />
+        </div>
+        
+        <!-- 커스텀 셀렉트 박스 -->
+        <div>
+          <label class="block font-bold text-gray-600 mb-1">정답 선택</label>
+          <div class="relative text-left">
+            <div id="customSelectTrigger" class="w-full border-2 border-gray-300 rounded-xl p-3 font-bold cursor-pointer flex justify-between items-center bg-white">
+              <span id="customSelectText">보기 1 (주황)</span> <i class="fas fa-chevron-down text-gray-400"></i>
+            </div>
+            <div id="customSelectDropdown" class="closed absolute left-0 right-0 top-full mt-1 bg-white border-2 border-gray-300 rounded-xl shadow-2xl z-50 overflow-hidden custom-dropdown-content">
+              <div class="p-3 hover:bg-orange-100 cursor-pointer font-bold border-b border-gray-100" data-val="0">보기 1 (주황)</div>
+              <div class="p-3 hover:bg-blue-100 cursor-pointer font-bold border-b border-gray-100" data-val="1">보기 2 (파랑)</div>
+              <div class="p-3 hover:bg-green-100 cursor-pointer font-bold border-b border-gray-100" data-val="2">보기 3 (초록)</div>
+              <div class="p-3 hover:bg-red-100 cursor-pointer font-bold" data-val="3">보기 4 (빨강)</div>
+            </div>
+          </div>
+          <input type="hidden" id="quizEditorCorrect" value="0" />
+        </div>
+      </div>
+
+      <div class="flex gap-3 mt-8">
+        <button id="btnQuizEditorCancel" class="flex-1 bg-gray-200 text-gray-700 font-bold py-3 rounded-xl border-b-4 border-gray-300 hover:bg-gray-300 active:translate-y-1 active:border-b-0">취소</button>
+        <button id="btnQuizEditorSave" class="flex-1 bg-[#00c2cb] text-white font-bold py-3 rounded-xl border-b-4 border-[#008f96] hover:bg-[#00aeb6] active:translate-y-1 active:border-b-0">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- 0. 고급 로딩 화면 -->
+  <!-- ============================================== -->
+  <div id="loadingView" class="min-h-screen flex flex-col items-center justify-center theme-gradient text-white z-50 fixed inset-0 overflow-hidden select-none">
+    <div class="absolute inset-0 opacity-10 pattern-bg"></div>
+    <h1 id="loadTitle" class="text-5xl md:text-7xl font-black tracking-widest drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all duration-1000 transform scale-100">Blooket P3846 Edition</h1>
+    <p id="loadText" class="text-sm md:text-base font-bold text-purple-300 mt-6 opacity-0 transition-all duration-[800ms] transform translate-y-8 tracking-wide text-center px-4"></p>
+    
+    <div id="loadSpinnerBox" class="absolute top-[60%] opacity-0 transition-all duration-700 transform translate-y-10 flex flex-col items-center">
+      <div class="relative w-20 h-20">
+        <div class="absolute inset-0 border-4 border-white/10 rounded-full"></div>
+        <div class="absolute inset-0 border-4 border-transparent border-t-[#00c2cb] border-r-[#8b25d2] rounded-full animate-spin" style="animation-duration: 0.8s;"></div>
+      </div>
+      <div class="mt-4 font-black text-purple-200 tracking-widest text-sm animate-pulse">CONNECTING</div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- 1. 홈 화면 -->
+  <!-- ============================================== -->
+  <div id="homeView" class="hidden min-h-screen theme-gradient flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div class="absolute inset-0 opacity-20 pattern-bg pointer-events-none"></div>
+    <div class="bg-white/5 backdrop-blur-xl rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] p-10 max-w-md w-full relative z-10 text-center border border-white/10 animate-fade-in-up">
+      <h1 class="text-4xl md:text-5xl font-black text-white mb-2 tracking-widest drop-shadow-lg">Blooket P3846 Edition</h1>
+      <p class="text-purple-300 font-bold mb-8 drop-shadow-md">가장 먼저 맞히는 자가 살아남습니다</p>
+      <div class="space-y-6">
+        <button id="btnCreateHost" class="w-full bg-[#8b25d2] text-white font-black text-2xl py-6 rounded-2xl border-b-4 border-[#6c1da3] hover:bg-[#7a20b8] active:translate-y-1 active:border-b-0 transition-all flex justify-center items-center gap-3 shadow-lg hover:shadow-purple-500/50">
+          <i class="fas fa-crown text-3xl"></i> 게임 호스트
+        </button>
+        <div class="relative flex py-4 items-center">
+          <div class="flex-grow border-t border-white/20"></div>
+          <span class="flex-shrink-0 mx-4 text-white/40 font-black text-sm tracking-widest">OR</span>
+          <div class="flex-grow border-t border-white/20"></div>
+        </div>
+        <button id="btnJoinPlayer" class="w-full bg-white text-[#1e1b4b] font-black text-2xl py-6 rounded-2xl border-b-4 border-gray-300 hover:bg-gray-100 active:translate-y-1 active:border-b-0 transition-all flex justify-center items-center gap-3 shadow-sm hover:shadow-white/20">
+          <i class="fas fa-gamepad text-3xl"></i> 핀 번호 입력
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- 1-5. 관리자 대시보드 화면 -->
+  <!-- ============================================== -->
+  <div id="adminView" class="hidden min-h-screen bg-gray-100 flex-col items-center p-8 relative z-[1000] overflow-y-auto">
+    <button id="btnExitAdmin" class="absolute top-6 left-6 text-gray-500 hover:text-[#8b25d2] text-4xl transition-colors"><i class="fas fa-arrow-left"></i></button>
+    <h1 class="text-5xl font-black text-[#8b25d2] mb-8 drop-shadow-sm"><i class="fas fa-cogs"></i> Host Settings</h1>
+    
+    <div class="bg-white rounded-3xl shadow-xl p-8 max-w-3xl w-full space-y-8 border-t-8 border-[#8b25d2] animate-fade-in-up">
+      
+      <!-- 퀴즈 편집기 -->
+      <div>
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold text-gray-700"><i class="fas fa-list-alt text-[#00c2cb] mr-2"></i> 퀴즈 문제 관리</h3>
+          <button id="btnAdminAddQuiz" class="bg-blue-100 text-blue-700 font-bold py-2 px-4 rounded-lg hover:bg-blue-200 transition-colors border-b-4 border-blue-300 active:translate-y-1 active:border-b-0"><i class="fas fa-plus"></i> 새 문제</button>
+        </div>
+        <div id="adminQuizList" class="space-y-3 max-h-64 overflow-y-auto custom-scrollbar pr-2 border-2 border-gray-100 rounded-xl p-3 bg-gray-50">
+          <!-- 퀴즈 목록 자바스크립트로 렌더링 -->
+        </div>
+      </div>
+
+      <!-- 음악 URL 설정 -->
+      <div class="pt-6 border-t-2 border-gray-100">
+        <h3 class="text-xl font-bold text-gray-700 mb-3"><i class="fas fa-music text-[#00c2cb] mr-2"></i> 배경 음악(BGM) 링크 설정</h3>
+        <div class="flex gap-2 mb-2">
+          <input type="text" id="adminBgmUrlInput" placeholder="MP3 등 오디오 다이렉트 링크 입력" class="flex-1 text-sm font-bold py-3 px-4 rounded-xl border-2 border-gray-200 focus:border-[#8b25d2] focus:outline-none" />
+          <button id="btnSaveBgmUrl" class="bg-[#8b25d2] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#7a20b8] border-b-4 border-[#6c1da3] active:translate-y-1 active:border-b-0">저장</button>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">* 링크를 저장하면 데이터베이스에 연동되어 모든 플레이어에게 동일한 음악이 적용됩니다.</p>
+        <div class="flex gap-4">
+          <button id="btnTestBgmPlay" class="bg-[#48a648] text-white px-6 py-2 rounded-xl font-bold hover:bg-[#398539] flex-1 border-b-4 border-[#398539] active:translate-y-1 active:border-b-0"><i class="fas fa-play mr-2"></i> BGM 미리듣기</button>
+          <button id="btnTestBgmPause" class="bg-[#e63946] text-white px-6 py-2 rounded-xl font-bold hover:bg-[#c9313d] flex-1 border-b-4 border-[#c9313d] active:translate-y-1 active:border-b-0"><i class="fas fa-pause mr-2"></i> 정지</button>
+        </div>
+      </div>
+      
+      <!-- 호스트 로비 텍스트 설정 -->
+      <div class="pt-6 border-t-2 border-gray-100">
+        <h3 class="text-xl font-bold text-gray-700 mb-3"><i class="fas fa-desktop text-[#00c2cb] mr-2"></i> 화면 안내 문구 변경</h3>
+        <div class="flex gap-2">
+          <input type="text" id="adminLobbyTextInput" placeholder="예: play.blooket.com" class="flex-1 text-lg font-bold py-3 px-4 rounded-xl border-2 border-gray-200 focus:border-[#8b25d2] focus:outline-none" />
+          <button id="btnSaveLobbyText" class="bg-[#8b25d2] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#7a20b8] border-b-4 border-[#6c1da3] active:translate-y-1 active:border-b-0">저장</button>
+        </div>
+      </div>
+
+      <!-- 게임 참여 링크 설정 -->
+      <div class="pt-6 border-t-2 border-gray-100">
+        <h3 class="text-xl font-bold text-gray-700 mb-3"><i class="fas fa-link text-[#00c2cb] mr-2"></i> 공유용 게임 링크 베이스 주소</h3>
+        <div class="flex gap-2">
+          <input type="text" id="adminJoinLinkInput" placeholder="예: https://mysite.vercel.app" class="flex-1 text-lg font-bold py-3 px-4 rounded-xl border-2 border-gray-200 focus:border-[#8b25d2] focus:outline-none" />
+          <button id="btnSaveJoinLink" class="bg-[#8b25d2] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#7a20b8] border-b-4 border-[#6c1da3] active:translate-y-1 active:border-b-0">저장</button>
+        </div>
+      </div>
+
+      <!-- 비밀번호 변경 -->
+      <div class="pt-6 border-t-2 border-gray-100">
+        <h3 class="text-xl font-bold text-gray-700 mb-3"><i class="fas fa-key text-red-500 mr-2"></i> 관리자 비밀번호 변경</h3>
+        <div class="flex gap-2">
+          <input type="password" id="adminNewPasswordInput" placeholder="새로운 비밀번호 입력" class="flex-1 text-lg font-bold py-3 px-4 rounded-xl border-2 border-gray-200 focus:border-red-500 focus:outline-none" />
+          <button id="btnSavePassword" class="bg-red-500 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-600 border-b-4 border-red-700 active:translate-y-1 active:border-b-0">변경</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- 2. Host 화면 모음 -->
+  <!-- ============================================== -->
+  
+  <!-- 2-1. Host 대기실 -->
+  <div id="hostLobbyView" class="hidden min-h-screen theme-gradient flex-col relative overflow-hidden">
+    <div class="bg-black/40 backdrop-blur-xl text-white p-6 md:p-8 flex flex-col items-center justify-center relative shadow-2xl border-b border-white/10">
+      <div class="text-2xl md:text-3xl font-bold mb-2 text-purple-200">Go to <span id="dynamicLobbyText" class="underline font-black text-white">play.blooket.com</span></div>
+      <div class="text-xl md:text-2xl font-bold mb-4 text-purple-200">and enter Game ID:</div>
+      <div id="hostGameIdDisplay" class="text-[120px] leading-none font-black drop-shadow-[0_0_30px_rgba(255,255,255,0.3)] tracking-widest text-white mb-2">000000</div>
+      
+      <!-- 버튼 그룹 -->
+      <button class="btnExit absolute left-6 top-6 text-white/40 hover:text-white transition-colors text-3xl" title="나가기">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
+      <button id="hostBtnToggleMusic" class="absolute left-20 top-6 text-white/80 hover:text-white transition-colors text-3xl drop-shadow-md" title="BGM 토글">
+        <i class="fas fa-volume-up"></i>
+      </button>
+      <button id="btnTestPlayer" class="absolute left-32 top-6 bg-blue-500/80 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg border-b-2 border-blue-700 active:translate-y-1 active:border-b-0 transition-all">
+        <i class="fas fa-external-link-alt mr-2"></i> 테스트 창 띄우기
+      </button>
+
+      <button id="hostBtnGameSettings" class="absolute right-32 top-6 text-white/40 hover:text-white transition-colors text-3xl" title="게임 설정">
+        <i class="fas fa-sliders-h"></i>
+      </button>
+      <button id="hostBtnCopyLink" class="absolute right-20 top-6 text-white/40 hover:text-white transition-colors text-3xl" title="링크 복사">
+        <i class="fas fa-link"></i>
+      </button>
+      
+      <div id="hostCopyToast" class="absolute right-32 top-16 bg-white text-[#1e1b4b] px-4 py-2 rounded-lg font-black opacity-0 transition-opacity duration-300 pointer-events-none z-50 shadow-lg">Link Copied!</div>
+    </div>
+
+    <!-- 호스트 게임 설정 팝업 -->
+    <div id="hostSettingsPanel" class="hidden absolute top-24 right-20 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl p-6 w-80 shadow-2xl z-50 animate-fade-in-up">
+      <h3 class="text-white font-black text-2xl mb-4 border-b border-white/20 pb-2"><i class="fas fa-cog text-purple-300 mr-2"></i> 게임 설정</h3>
+      <div class="space-y-5 text-white font-bold">
+        <div class="flex justify-between items-center">
+          <span class="text-sm">초기 목숨(하트) 개수</span>
+          <div class="flex items-center gap-2 bg-black/40 rounded-lg p-1">
+            <button id="hsLivesMinus" class="px-3 hover:text-red-400 text-xl">-</button>
+            <span id="hsLivesVal" class="w-6 text-center text-red-400 text-xl">3</span>
+            <button id="hsLivesPlus" class="px-3 hover:text-red-400 text-xl">+</button>
+          </div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm">플레이어 BGM 강제 음소거</span>
+          <div id="hsToggleMute" class="w-12 h-6 bg-gray-500 rounded-full relative cursor-pointer transition-colors"><div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform"></div></div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm">플레이어 강제 전체화면</span>
+          <div id="hsToggleFS" class="w-12 h-6 bg-gray-500 rounded-full relative cursor-pointer transition-colors"><div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform"></div></div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm">중도 참가 허용</span>
+          <div id="hsToggleLate" class="w-12 h-6 bg-green-500 rounded-full relative cursor-pointer transition-colors"><div class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full transition-transform"></div></div>
+        </div>
+        <div>
+          <div class="flex justify-between text-sm mb-2">
+            <span>호스트 배경음악 볼륨</span>
+            <span id="hsVolumeText" class="text-purple-300">40%</span>
+          </div>
+          <input type="range" id="hsVolume" min="0" max="100" value="40" class="w-full accent-[#00c2cb]" />
+        </div>
+      </div>
+      <button id="hsBtnClose" class="mt-6 w-full bg-[#8b25d2] text-white border-b-4 border-[#6c1da3] hover:bg-[#7a20b8] active:border-b-0 active:translate-y-1 py-3 rounded-xl font-black transition-all">설정 닫기 및 적용</button>
+    </div>
+
+    <div class="flex-1 relative p-8">
+      <div class="absolute inset-0 opacity-10 pattern-bg"></div>
+      <div class="relative z-10 flex justify-between items-start max-w-7xl mx-auto">
+        <div class="flex items-center text-white text-5xl font-black drop-shadow-md bg-black/30 px-6 py-3 rounded-2xl border border-white/10">
+          <span id="hostPlayerCount" class="mr-4">0</span>
+          <i class="fas fa-user text-purple-300"></i>
+        </div>
+        <h1 class="text-[120px] font-black text-white/5 drop-shadow-sm absolute left-1/2 transform -translate-x-1/2 -top-10 pointer-events-none tracking-widest">DUEL</h1>
+        <button id="hostBtnStart" disabled class="bg-[#00c2cb] text-white font-black text-3xl py-4 px-12 rounded-2xl border-b-4 border-[#008f96] hover:bg-[#00aeb6] active:translate-y-1 active:border-b-0 transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed shadow-[0_0_30px_rgba(0,194,203,0.4)]">대기 중...</button>
+      </div>
+      <!-- 플레이어 그리드 -->
+      <div id="hostPlayerGrid" class="relative z-10 mt-20 flex flex-wrap gap-4 justify-center max-w-6xl mx-auto"></div>
+    </div>
+  </div>
+
+  <!-- 2-2. Host 게임 중 -->
+  <div id="hostPlayingView" class="hidden min-h-screen flex-col theme-gradient">
+    <header class="h-20 bg-black/40 backdrop-blur-xl flex justify-between items-center px-8 text-white shadow-2xl z-10 border-b border-white/10">
+      <div id="hostQuestionProgress" class="text-3xl font-black text-purple-200 drop-shadow-md">ROUND 1</div>
+      <div class="flex items-center gap-4 text-xl font-bold bg-white/10 px-4 py-2 rounded-xl border border-white/10">
+        <span id="hostPlayingGameId" class="text-white tracking-widest">ID: 000000</span>
+      </div>
+    </header>
+    <main class="flex-1 relative flex items-center justify-center p-8">
+      <h2 id="hostQuestionText" class="text-5xl md:text-7xl font-black text-white text-center max-w-5xl leading-tight drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]">질문</h2>
+      <div class="absolute right-8 top-1/2 transform -translate-y-1/2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-[40px] p-8 flex flex-col items-center shadow-[0_0_50px_rgba(0,0,0,0.5)] w-56">
+        <div class="relative w-40 h-40 mb-6">
+          <svg viewBox="0 0 100 100" class="w-full h-full transform -rotate-90 drop-shadow-lg">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="10" />
+            <circle id="hostTimerCircle" cx="50" cy="50" r="45" fill="none" stroke="#00c2cb" stroke-width="10" stroke-dasharray="283" stroke-dashoffset="0" class="transition-all duration-1000 linear" />
+          </svg>
+          <div id="hostTimerText" class="absolute inset-0 flex items-center justify-center text-6xl font-black text-white">15</div>
+        </div>
+        <div class="text-5xl font-black text-white mb-8 bg-black/30 px-6 py-2 rounded-2xl w-full text-center border border-white/10">
+          <span id="hostAnsweredCount">0</span> <span id="hostTotalCount" class="text-purple-300 text-3xl">/ 0</span>
+        </div>
+        <button id="hostBtnSkip" class="w-full bg-[#e63946] text-white font-black text-2xl py-4 rounded-2xl border-b-4 border-[#c9313d] hover:bg-[#d93845] active:translate-y-1 active:border-b-0 transition-all shadow-lg">강제 스킵</button>
+      </div>
+    </main>
+    <div id="hostOptionsGrid" class="h-[35vh] grid grid-cols-2 grid-rows-2 gap-3 p-3 bg-black/50"></div>
+  </div>
+
+  <!-- 2-3. Host 결과 화면 -->
+  <div id="hostResultView" class="hidden min-h-screen flex-col theme-gradient p-8 relative overflow-hidden">
+    <div class="absolute inset-0 opacity-10 pattern-bg"></div>
+    <h2 class="text-6xl font-black text-center mb-8 text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.5)] z-10 tracking-widest" id="hostRoundWinnerTitle">ROUND RESULT</h2>
+    <div id="hostResultGrid" class="flex-1 grid grid-cols-2 grid-rows-2 gap-4 z-10"></div>
+    <button id="hostBtnNext" class="mt-8 mx-auto w-80 bg-[#00c2cb] text-white font-black text-3xl py-6 rounded-2xl border-b-4 border-[#008f96] hover:bg-[#00aeb6] active:translate-y-1 active:border-b-0 transition-all shadow-[0_0_30px_rgba(0,194,203,0.5)] z-10">NEXT ROUND</button>
+  </div>
+
+  <!-- 2-4. Host 최종 랭킹 -->
+  <div id="hostEndView" class="hidden min-h-screen theme-gradient flex-col items-center p-10 text-white relative">
+    <h1 class="text-[80px] font-black mb-12 tracking-widest text-yellow-300 drop-shadow-[0_0_30px_rgba(253,224,71,0.8)] z-10">FINAL SURVIVOR</h1>
+    <div id="hostLeaderboard" class="w-full max-w-5xl space-y-4 z-10"></div>
+    <button class="btnExit mt-12 bg-white text-[#1e1b4b] px-12 py-5 rounded-2xl font-black text-2xl shadow-xl hover:bg-gray-100 border-b-4 border-gray-300 active:translate-y-1 active:border-b-0 z-10">홈으로 돌아가기</button>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- 3. Player 화면 모음 -->
+  <!-- ============================================== -->
+
+  <!-- 3-1. Player 입장 (ID & Name) -->
+  <div id="playerJoinView" class="hidden min-h-screen theme-gradient flex items-center justify-center p-4 relative">
+    <button class="btnExit absolute top-6 left-6 text-white/40 hover:text-white text-4xl"><i class="fas fa-arrow-left"></i></button>
+    <div class="bg-white/10 backdrop-blur-xl rounded-[40px] shadow-2xl p-10 max-w-sm w-full text-center border border-white/20 animate-fade-in-up">
+      <h1 class="text-5xl font-black text-white mb-8 tracking-widest drop-shadow-md">JOIN</h1>
+      
+      <div id="playerJoinStep1">
+        <div id="playerErrorText" class="text-red-200 font-bold mb-4 hidden bg-red-900/60 py-3 rounded-xl border border-red-500/50">잘못된 Game ID입니다.</div>
+        <input type="number" id="playerInputId" placeholder="Game ID" class="w-full text-center text-4xl font-black py-5 rounded-2xl border-4 border-transparent focus:border-[#00c2cb] focus:outline-none transition-colors mb-6 bg-white/90 text-[#1e1b4b]" />
+        <button id="playerBtnCheckId" class="w-full bg-[#00c2cb] text-white font-black text-3xl py-5 rounded-2xl border-b-4 border-[#008f96] hover:bg-[#00aeb6] active:translate-y-1 active:border-b-0 transition-all shadow-[0_0_20px_rgba(0,194,203,0.4)]"><i class="fas fa-arrow-right"></i></button>
+      </div>
+
+      <div id="playerJoinStep2" class="hidden">
+        <input type="text" id="playerInputName" placeholder="Nickname" maxlength="12" class="w-full text-center text-4xl font-black py-5 rounded-2xl border-4 border-transparent focus:border-[#00c2cb] focus:outline-none transition-colors mb-6 bg-white/90 text-[#1e1b4b]" />
+        <button id="playerBtnJoinLobby" class="w-full bg-[#00c2cb] text-white font-black text-3xl py-5 rounded-2xl border-b-4 border-[#008f96] hover:bg-[#00aeb6] active:translate-y-1 active:border-b-0 transition-all shadow-[0_0_20px_rgba(0,194,203,0.4)]"><i class="fas fa-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3-2. Player 대기실 (아바타 선택) -->
+  <div id="playerLobbyView" class="hidden min-h-screen theme-gradient flex-col relative">
+    <header class="bg-black/40 text-white p-4 flex justify-between items-center shadow-lg z-10 border-b border-white/10 backdrop-blur-xl">
+      <div id="playerHeaderName" class="font-black text-2xl px-4 truncate max-w-[200px] tracking-wide">Nickname</div>
+      <div class="font-bold text-xl drop-shadow-md text-purple-300">Waiting for Host...</div>
+      <button class="btnExit px-4 text-white/50 hover:text-white text-3xl"><i class="fas fa-sign-out-alt"></i></button>
+    </header>
+
+    <div class="flex-1 flex flex-col lg:flex-row p-4 gap-6 max-w-7xl mx-auto w-full h-[calc(100vh-80px)]">
+      <div class="flex-[6] bg-white/5 backdrop-blur-xl rounded-[30px] border border-white/10 p-5 flex flex-col overflow-hidden relative shadow-2xl">
+        <div class="overflow-y-auto pr-3 custom-scrollbar flex-1">
+          <div id="playerAvatarGrid" class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3"></div>
+        </div>
+      </div>
+
+      <div class="flex-[4] flex flex-col gap-6 min-w-[320px]">
+        <div class="bg-white/5 backdrop-blur-2xl rounded-[30px] border border-white/20 p-2 flex flex-col items-center justify-center flex-1 relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.3)] room-bg">
+          <div class="absolute inset-x-0 bottom-0 h-[30%] bg-[#1e1b4b] border-t-[12px] border-[#0f172a]"></div>
+          <div class="relative z-10 flex flex-col items-center w-full">
+            <h2 id="previewAvatarName" class="font-black text-5xl text-white drop-shadow-lg tracking-widest mb-2 text-center">Name</h2>
+            <span id="previewAvatarRarity" class="font-bold text-2xl text-purple-300 drop-shadow-md mb-8">Rarity</span>
+            <div class="relative mt-8">
+              <div id="previewAvatarIcon" class="w-48 h-48 rounded-[40px] flex items-center justify-center text-[100px] shadow-2xl border-4 border-white relative z-10 transform translate-y-6 bg-gray-200">?</div>
+              <div class="w-64 h-24 bg-[#00c2cb] rounded-[70px_70px_20px_20px] shadow-[0_15px_0_0_#008f96] absolute -bottom-8 -left-8 z-0"></div>
+              <div class="w-56 h-14 bg-[#a5f3fc] rounded-[50px_50px_10px_10px] absolute -bottom-2 -left-4 z-0"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3-3. Player 인게임 -->
+  <div id="playerPlayingView" class="hidden min-h-screen flex-col theme-gradient">
+    <header class="bg-black/50 backdrop-blur-2xl p-4 shadow-xl flex justify-between items-center px-6 border-b border-white/10 z-10">
+      <div class="flex items-center gap-4">
+        <div class="relative">
+          <span id="playerIngameAvatar" class="text-3xl w-14 h-14 flex items-center justify-center rounded-xl border-2 border-white/30 bg-gray-200 shadow-inner">?</span>
+        </div>
+        <span id="playerIngameName" class="font-black text-2xl text-white tracking-wide">Nickname</span>
+      </div>
+      
+      <!-- 플레이어 생명(하트) 및 점수 UI -->
+      <div class="flex items-center gap-6">
+        <div class="flex items-center gap-1 bg-black/40 px-4 py-2 rounded-xl border border-white/10">
+          <span class="text-white font-bold mr-2 text-sm">LIVES</span>
+          <div id="playerHeartsContainer" class="flex gap-1 text-red-500 text-2xl drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>
+        </div>
+        <div class="bg-yellow-500/20 text-yellow-300 px-5 py-2 rounded-xl font-black text-2xl border border-yellow-500/50 backdrop-blur-sm shadow-[0_0_15px_rgba(234,179,8,0.3)]">
+          ⭐ <span id="playerIngameScore">0</span>
+        </div>
+      </div>
+    </header>
+    
+    <!-- 탈락(사망) 상태 화면 -->
+    <div id="playerDeadScreen" class="hidden flex-1 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-20">
+      <i class="fas fa-skull text-[120px] text-gray-400 mb-6 drop-shadow-lg"></i>
+      <h2 class="text-6xl font-black text-red-500 tracking-widest drop-shadow-[0_0_20px_rgba(239,68,68,0.8)] mb-4">ELIMINATED</h2>
+      <p class="text-2xl font-bold text-gray-300">목숨을 모두 잃었습니다. 게임을 관전하세요.</p>
+    </div>
+
+    <!-- 정상 플레이 화면 -->
+    <div id="playerAliveScreen" class="flex-1 flex flex-col w-full">
+      <div id="playerQuestionContainer" class="bg-white/5 backdrop-blur-xl p-8 text-center shadow-lg border-b border-white/10">
+         <h3 id="playerQuestionText" class="text-3xl md:text-4xl font-black text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] leading-tight">질문</h3>
+      </div>
+
+      <div id="playerWaitingBox" class="hidden flex-1 flex flex-col items-center justify-center">
+        <div class="w-24 h-24 border-8 border-white/10 border-t-[#00c2cb] rounded-full animate-spin mb-8 shadow-[0_0_30px_rgba(0,194,203,0.5)]"></div>
+        <h2 class="text-4xl font-black text-white drop-shadow-md tracking-widest">WAITING...</h2>
+        <p class="text-purple-300 font-bold mt-4">다른 플레이어들의 응답을 기다립니다</p>
+      </div>
+
+      <div id="playerOptionsGrid" class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4"></div>
+    </div>
+  </div>
+
+  <!-- 3-4. Player 정답/오답 결과 화면 -->
+  <div id="playerResultView" class="hidden min-h-screen flex-col items-center justify-center text-white transition-colors duration-[800ms]">
+    <div class="text-center transform transition-transform duration-500 scale-95" id="playerResultAnimBox">
+      <div id="playerResultIcon" class="text-[120px] mb-8 bg-white/20 inline-block p-8 rounded-[40px] shadow-2xl backdrop-blur-xl border-2 border-white/30 drop-shadow-lg">✅</div>
+      <h2 id="playerResultText" class="text-[80px] font-black mb-6 drop-shadow-[0_10px_10px_rgba(0,0,0,0.6)] tracking-widest leading-none">Correct!</h2>
+      <p id="playerResultSubText" class="text-2xl font-bold text-white/80 mb-8 tracking-wide">하지만 상대보다 늦었습니다.</p>
+      
+      <div id="playerResultStatusBox" class="bg-black/50 rounded-3xl px-10 py-6 font-black text-4xl border border-white/20 shadow-[0_0_30px_rgba(0,0,0,0.5)] inline-block backdrop-blur-2xl">
+        <span id="playerResultEffect">목숨 -1 ❤️</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3-5. Player 최종 결과 -->
+  <div id="playerEndView" class="hidden min-h-screen theme-gradient flex-col items-center justify-center p-6 text-white relative">
+    <div class="absolute inset-0 opacity-10 pattern-bg"></div>
+    <h1 class="text-7xl font-black mb-12 tracking-widest text-yellow-300 drop-shadow-[0_0_30px_rgba(253,224,71,0.8)] z-10">GAME OVER</h1>
+    <div class="bg-white/10 backdrop-blur-2xl rounded-[40px] p-12 text-center flex flex-col items-center shadow-2xl border border-white/20 w-full max-w-lg z-10">
+      <div id="playerFinalAvatar" class="text-[100px] w-48 h-48 flex items-center justify-center rounded-3xl mb-8 border-4 border-white/30 shadow-inner bg-gray-200 drop-shadow-lg">?</div>
+      <h2 id="playerFinalName" class="text-5xl font-black text-white mb-4 drop-shadow-md tracking-wide">Nickname</h2>
+      <div class="text-purple-300 font-bold text-xl mb-8 uppercase tracking-widest">Final Duel Score</div>
+      <div class="text-6xl font-black text-yellow-300 flex items-center justify-center gap-4 bg-black/40 px-10 py-8 rounded-3xl w-full border border-yellow-500/30 shadow-inner">
+        ⭐ <span id="playerFinalScore">0</span>
+      </div>
+    </div>
+    <button class="btnExit mt-12 bg-[#8b25d2] text-white font-black text-3xl py-5 px-16 rounded-2xl shadow-[0_0_30px_rgba(139,37,210,0.5)] border-b-4 border-[#6c1da3] hover:bg-[#7a20b8] active:translate-y-1 active:border-b-0 transition-all z-10">
+      홈으로 돌아가기
+    </button>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- Javascript 로직 (Firebase RTDB + UI 제어) -->
+  <!-- ============================================== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue, remove, update, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    const localFirebaseConfig = {
+      databaseURL: "https://class-chat-6-7-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    };
+
+    const app = initializeApp(localFirebaseConfig);
+    const db = getDatabase(app);
+
+    // ==============================================
+    // 커스텀 팝업 (Native Alert/Confirm/Prompt 대체)
+    // ==============================================
+    const customAlert = (msg) => {
+      return new Promise(resolve => {
+        document.getElementById('customAlertMsg').innerText = msg;
+        const modal = document.getElementById('customAlertModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        const btn = document.getElementById('customAlertBtn');
+        const clickHandler = () => {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+          btn.removeEventListener('click', clickHandler);
+          resolve();
+        };
+        btn.addEventListener('click', clickHandler);
+      });
+    };
+
+    const customConfirm = (msg) => {
+      return new Promise(resolve => {
+        document.getElementById('customConfirmMsg').innerText = msg;
+        const modal = document.getElementById('customConfirmModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        const btnOk = document.getElementById('customConfirmOk');
+        const btnCancel = document.getElementById('customConfirmCancel');
+        
+        const cleanUp = () => {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+          btnOk.removeEventListener('click', onOk);
+          btnCancel.removeEventListener('click', onCancel);
+        };
+        
+        const onOk = () => { cleanUp(); resolve(true); };
+        const onCancel = () => { cleanUp(); resolve(false); };
+        
+        btnOk.addEventListener('click', onOk);
+        btnCancel.addEventListener('click', onCancel);
+      });
+    };
+
+    const customPrompt = (msg, defaultText = "") => {
+      return new Promise(resolve => {
+        document.getElementById('customPromptMsg').innerText = msg;
+        const input = document.getElementById('customPromptInput');
+        input.value = defaultText;
+        const modal = document.getElementById('customPromptModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        input.focus();
+        
+        const btnOk = document.getElementById('customPromptOk');
+        const btnCancel = document.getElementById('customPromptCancel');
+        
+        const cleanUp = () => {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+          btnOk.removeEventListener('click', onOk);
+          btnCancel.removeEventListener('click', onCancel);
+        };
+        
+        const onOk = () => { cleanUp(); resolve(input.value); };
+        const onCancel = () => { cleanUp(); resolve(null); };
+        
+        btnOk.addEventListener('click', onOk);
+        btnCancel.addEventListener('click', onCancel);
+      });
+    };
+
+    const setupCustomSelect = () => {
+      const trigger = document.getElementById('customSelectTrigger');
+      const dropdown = document.getElementById('customSelectDropdown');
+      const text = document.getElementById('customSelectText');
+      const hiddenInput = document.getElementById('quizEditorCorrect');
+
+      if (!trigger || !dropdown) return;
+
+      trigger.addEventListener('click', () => {
+        if(dropdown.classList.contains('closed')){
+          dropdown.classList.remove('closed');
+          dropdown.classList.add('open');
+        } else {
+          dropdown.classList.remove('open');
+          dropdown.classList.add('closed');
+        }
+      });
+
+      dropdown.querySelectorAll('div[data-val]').forEach(item => {
+        item.addEventListener('click', (e) => {
+          text.innerText = e.target.innerText;
+          hiddenInput.value = e.target.dataset.val;
+          dropdown.classList.remove('open');
+          dropdown.classList.add('closed');
+        });
+      });
+    };
+    setupCustomSelect();
+
+    // ==============================================
+    // 초기 설정
+    // ==============================================
+    const UNLOCKED_BLOOKS = [
+      { id: 1, emoji: "🐤", name: "Chick", rarity: "Common", bg: "bg-[#fcd34d]" },
+      { id: 2, emoji: "🐔", name: "Chicken", rarity: "Common", bg: "bg-[#f8fafc]" },
+      { id: 3, emoji: "🐮", name: "Cow", rarity: "Common", bg: "bg-[#e2e8f0]" },
+      { id: 4, emoji: "🐐", name: "Goat", rarity: "Common", bg: "bg-[#d6d3d1]" },
+      { id: 5, emoji: "🐴", name: "Horse", rarity: "Common", bg: "bg-[#b45309]" },
+      { id: 6, emoji: "🐷", name: "Pig", rarity: "Common", bg: "bg-[#fbcfe8]" },
+      { id: 7, emoji: "🐑", name: "Sheep", rarity: "Common", bg: "bg-[#f1f5f9]" },
+      { id: 8, emoji: "🦆", name: "Duck", rarity: "Uncommon", bg: "bg-[#34d399]" },
+      { id: 9, emoji: "🐶", name: "Dog", rarity: "Common", bg: "bg-[#fdba74]" },
+      { id: 10, emoji: "🐱", name: "Cat", rarity: "Common", bg: "bg-[#fcd34d]" },
+      { id: 11, emoji: "🐰", name: "Rabbit", rarity: "Common", bg: "bg-[#f8fafc]" },
+      { id: 12, emoji: "🐠", name: "Goldfish", rarity: "Uncommon", bg: "bg-[#60a5fa]" },
+      { id: 14, emoji: "🐢", name: "Turtle", rarity: "Uncommon", bg: "bg-[#4ade80]" },
+      { id: 16, emoji: "🐺", name: "Husky", rarity: "Rare", bg: "bg-[#94a3b8]" },
+      { id: 19, emoji: "🦊", name: "Fox", rarity: "Rare", bg: "bg-[#fb923c]" },
+      { id: 24, emoji: "🐼", name: "Panda", rarity: "Epic", bg: "bg-[#cbd5e1]" },
+      { id: 26, emoji: "🐯", name: "Tiger", rarity: "Epic", bg: "bg-[#f59e0b]" },
+      { id: 38, emoji: "🐧", name: "Penguin", rarity: "Legendary", bg: "bg-[#1e293b]" },
+    ];
+    const LOCKED_BLOOKS = Array(60).fill({ locked: true });
+    
+    const OPTION_COLORS = [
+      'bg-[#f39c12] hover:bg-[#e67e22]', 'bg-[#3498db] hover:bg-[#2980b9]',
+      'bg-[#2ecc71] hover:bg-[#27ae60]', 'bg-[#e74c3c] hover:bg-[#c0392b]'
+    ];
+    
+    let globalQuestions = [];
+    const TIME_LIMIT = 15;
+    const defaultBgmUrl = "https://cdn.pixabay.com/download/audio/2022/03/15/audio_17b189a7bb.mp3?filename=8-bit-arcade-138828.mp3";
+    const ingameBgmUrl = "https://cdn.pixabay.com/download/audio/2021/08/04/audio_12b0c7443c.mp3?filename=8-bit-action-1-43542.mp3"; 
+
+    let currentUser = null;
+    let currentGameId = null;
+    let currentGameData = null;
+    let currentPlayerData = null;
+    let currentPlayersList = [];
+    let hostTimerInterval = null;
+    let selectedBlook = UNLOCKED_BLOOKS[0];
+    
+    let globalSettings = {
+      adminPassword: "1111",
+      lobbyText: "play.blooket.com",
+      joinLink: window.location.href.split('?')[0],
+      bgmUrl: defaultBgmUrl 
+    };
+
+    let hostGameSettings = {
+      maxLives: 3,
+      mutePlayers: true,
+      requireFullscreen: false,
+      allowLateJoin: true,
+      volume: 40
+    };
+    
+    let unsubGame = null;
+    let unsubPlayers = null;
+    let unsubMe = null;
+    const bgMusic = document.getElementById('bgMusic');
+
+    // ==============================================
+    // 유틸리티 함수
+    // ==============================================
+    const btnGlobalFullscreen = document.getElementById('btnGlobalFullscreen');
+    btnGlobalFullscreen.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => console.log(err));
+        btnGlobalFullscreen.innerHTML = '<i class="fas fa-compress"></i>';
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+          btnGlobalFullscreen.innerHTML = '<i class="fas fa-expand"></i>';
+        }
+      }
+    });
+
+    const switchView = (viewId) => {
+      document.querySelectorAll('body > div').forEach(div => {
+        if (!['adminTriggerZone', 'adminLoginModal', 'adminView', 'quizEditorModal', 'customAlertModal', 'customConfirmModal', 'customPromptModal'].includes(div.id)) {
+           div.classList.add('hidden');
+           div.classList.remove('flex');
+        }
+      });
+      document.getElementById(viewId).classList.remove('hidden');
+      document.getElementById(viewId).classList.add('flex');
+    };
+
+    const cleanupListeners = () => {
+      if (unsubGame) unsubGame();
+      if (unsubPlayers) unsubPlayers();
+      if (unsubMe) unsubMe();
+      if (hostTimerInterval) clearInterval(hostTimerInterval);
+      unsubGame = unsubPlayers = unsubMe = hostTimerInterval = null;
+      currentGameId = currentGameData = currentPlayerData = null;
+      currentPlayersList = [];
+      btnGlobalFullscreen.classList.remove('hidden'); // 강제 숨김 초기화
+    };
+
+    const exitToHome = async () => {
+      if (currentGameId && currentGameData && currentGameData.hostId === currentUser.uid) {
+        try { await remove(ref(db, 'games/' + currentGameId)); } catch(e){}
+      }
+      cleanupListeners();
+      if(bgMusic) bgMusic.pause();
+      switchView('homeView');
+    };
+
+    const updateBgmForState = (status) => {
+      if (!bgMusic) return;
+      
+      const isPlayer = currentGameData && currentUser && currentUser.uid !== currentGameData.hostId;
+      const isMuted = currentGameData && currentGameData.settings && currentGameData.settings.mutePlayers;
+      
+      if (isPlayer && isMuted) {
+         bgMusic.pause();
+         return;
+      }
+      
+      const targetUrl = status === 'playing' ? ingameBgmUrl : (globalSettings.bgmUrl || defaultBgmUrl);
+      if (bgMusic.src !== targetUrl) {
+         bgMusic.src = targetUrl;
+         bgMusic.play().catch(e => console.log("BGM 재생 보류됨:", e));
+      } else if (bgMusic.paused) {
+         bgMusic.play().catch(e => console.log("BGM 재생 보류됨:", e));
+      }
+    };
+
+    document.querySelectorAll('.btnExit').forEach(btn => btn.addEventListener('click', exitToHome));
+
+    // 엔터키 이벤트 바인딩
+    document.getElementById('playerInputId').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('playerBtnCheckId').click();
+    });
+    document.getElementById('playerInputName').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('playerBtnJoinLobby').click();
+    });
+    document.getElementById('adminPasswordInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('btnAdminLoginSubmit').click();
+    });
+
+    // ==============================================
+    // 고급 로딩 애니메이션 시퀀스
+    // ==============================================
+    const runLoadingSequence = () => {
+      const title = document.getElementById('loadTitle');
+      const text = document.getElementById('loadText');
+      const spinnerBox = document.getElementById('loadSpinnerBox');
+
+      const messages = [
+        "RTDB 서버와 연결을 시도하는 중...",
+        "데이터 무결성을 검증하고 있습니다...",
+        "게임 에셋을 초기화하는 중..."
+      ];
+      let msgIdx = 0;
+
+      setTimeout(() => {
+        title.style.transform = "translateY(-60px) scale(0.85)";
+        text.style.opacity = "1";
+        text.style.transform = "translateY(0)";
+        text.innerText = messages[0];
+        
+        const msgInterval = setInterval(() => {
+          msgIdx++;
+          if(msgIdx < messages.length) text.innerText = messages[msgIdx];
+          else clearInterval(msgInterval);
+        }, 800);
+      }, 1000);
+
+      setTimeout(() => {
+        title.style.transform = "translateY(-120px) scale(0.7)";
+        text.style.transform = "translateY(-100px) scale(0.85)";
+        spinnerBox.style.opacity = "1";
+        spinnerBox.style.transform = "translateY(0)";
+      }, 3400);
+
+      setTimeout(() => {
+        initLocalUser(); 
+      }, 4800);
+    };
+
+    const initLocalUser = () => {
+      // 🚨 브라우저 스토리지 연동을 해제하고 무조건 고유 ID 생성 (동일 브라우저 무한 다중 접속 지원) 🚨
+      let uid = 'user_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+      currentUser = { uid: uid };
+      document.getElementById('loadingView').classList.add('hidden');
+      switchView('homeView');
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const gid = urlParams.get('gameId');
+      if(gid) {
+        setTimeout(() => {
+          document.getElementById('btnJoinPlayer').click();
+          document.getElementById('playerInputId').value = gid;
+          document.getElementById('playerBtnCheckId').click();
+        }, 300);
+      }
+    };
+
+    if(new URLSearchParams(window.location.search).get('testmode')) {
+       document.getElementById('loadingView').classList.add('hidden');
+       initLocalUser();
+    } else {
+       window.addEventListener('DOMContentLoaded', runLoadingSequence);
+    }
+
+    onValue(ref(db, 'settings/global'), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        globalSettings = { ...globalSettings, ...data };
+        if(currentGameData && currentGameData.status !== 'playing') {
+          if(bgMusic.src !== globalSettings.bgmUrl && globalSettings.bgmUrl) {
+            bgMusic.src = globalSettings.bgmUrl;
+          }
+        }
+      } else {
+        set(ref(db, 'settings/global'), globalSettings);
+      }
+      
+      const lobbyTextEl = document.getElementById('dynamicLobbyText');
+      if (lobbyTextEl) lobbyTextEl.innerText = globalSettings.lobbyText;
+    });
+
+    onValue(ref(db, 'settings/questions'), (snapshot) => {
+      if (snapshot.exists()) {
+        globalQuestions = snapshot.val();
+      } else {
+        globalQuestions = [
+          { question: "다음 중 과일인 것은?", options: ["orange", "apple", "sa and gua", "sagua"], correct: 1 },
+          { question: "대한민국의 수도는?", options: ["부산", "인천", "서울", "제주"], correct: 2 },
+          { question: "물(H2O)을 구성하는 원소가 아닌 것은?", options: ["수소", "산소", "탄소", "없음"], correct: 2 }
+        ];
+        set(ref(db, 'settings/questions'), globalQuestions);
+      }
+    });
+
+    // ==============================================
+    // [관리자(Admin) 모드 및 설정]
+    // ==============================================
+    let adminClickCount = 0;
+    let adminClickTimer = null;
+    
+    document.getElementById('adminTriggerZone').addEventListener('click', () => {
+      adminClickCount++;
+      clearTimeout(adminClickTimer);
+      
+      if (adminClickCount >= 3) {
+        adminClickCount = 0;
+        document.getElementById('adminPasswordInput').value = '';
+        document.getElementById('adminLoginModal').classList.remove('hidden');
+      } else {
+        adminClickTimer = setTimeout(() => { adminClickCount = 0; }, 1200);
+      }
+    });
+
+    document.getElementById('btnAdminLoginCancel').addEventListener('click', () => document.getElementById('adminLoginModal').classList.add('hidden'));
+
+    document.getElementById('btnAdminLoginSubmit').addEventListener('click', async () => {
+      const pwd = document.getElementById('adminPasswordInput').value;
+      if (pwd === globalSettings.adminPassword) {
+        document.getElementById('adminLoginModal').classList.add('hidden');
+        
+        document.querySelectorAll('body > div').forEach(div => {
+          if (!['adminTriggerZone', 'adminLoginModal', 'adminView', 'quizEditorModal', 'customAlertModal', 'customConfirmModal', 'customPromptModal'].includes(div.id)) {
+            div.classList.add('hidden');
+            div.classList.remove('flex');
+          }
+        });
+        document.getElementById('adminView').classList.remove('hidden');
+        document.getElementById('adminView').classList.add('flex');
+        
+        document.getElementById('adminLobbyTextInput').value = globalSettings.lobbyText;
+        document.getElementById('adminJoinLinkInput').value = globalSettings.joinLink;
+        document.getElementById('adminBgmUrlInput').value = globalSettings.bgmUrl;
+        
+        const list = document.getElementById('adminQuizList');
+        list.innerHTML = globalQuestions.map((q, idx) => `
+          <div class="bg-white p-3 rounded-xl border border-gray-200 flex justify-between items-center shadow-sm">
+            <div class="truncate pr-4 font-bold text-gray-700">Q${idx + 1}. ${q.question}</div>
+            <div class="flex gap-2">
+              <button class="btn-edit-quiz text-blue-500 hover:text-blue-700 bg-blue-50 p-2 rounded-lg" data-idx="${idx}"><i class="fas fa-edit"></i></button>
+              <button class="btn-delete-quiz text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg" data-idx="${idx}"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        `).join('');
+
+        list.querySelectorAll('.btn-edit-quiz').forEach(btn => btn.addEventListener('click', (e) => openQuizEditor(parseInt(e.currentTarget.dataset.idx))));
+        list.querySelectorAll('.btn-delete-quiz').forEach(btn => btn.addEventListener('click', async (e) => {
+          if (await customConfirm('이 문제를 삭제하시겠습니까?')) {
+            const idx = parseInt(e.currentTarget.dataset.idx);
+            const newQuestions = [...globalQuestions];
+            newQuestions.splice(idx, 1);
+            set(ref(db, 'settings/questions'), newQuestions);
+            document.getElementById('btnAdminLoginSubmit').click(); 
+          }
+        }));
+      } else {
+        await customAlert('비밀번호가 일치하지 않습니다.');
+      }
+    });
+
+    document.getElementById('btnExitAdmin').addEventListener('click', () => {
+      document.getElementById('adminView').classList.add('hidden');
+      switchView('homeView');
+    });
+
+    document.getElementById('btnSaveLobbyText').addEventListener('click', async () => {
+      const val = document.getElementById('adminLobbyTextInput').value;
+      await update(ref(db, 'settings/global'), { lobbyText: val });
+      await customAlert('안내 문구가 저장되었습니다.');
+    });
+
+    document.getElementById('btnSaveJoinLink').addEventListener('click', async () => {
+      const val = document.getElementById('adminJoinLinkInput').value;
+      await update(ref(db, 'settings/global'), { joinLink: val });
+      await customAlert('게임 링크가 저장되었습니다.');
+    });
+    
+    document.getElementById('btnSaveBgmUrl').addEventListener('click', async () => {
+      const val = document.getElementById('adminBgmUrlInput').value;
+      await update(ref(db, 'settings/global'), { bgmUrl: val });
+      await customAlert('BGM 링크가 저장되었습니다. 모든 기기에 동기화됩니다.');
+    });
+
+    document.getElementById('btnSavePassword').addEventListener('click', async () => {
+      const val = document.getElementById('adminNewPasswordInput').value;
+      if (!val) return customAlert('새 비밀번호를 입력해주세요.');
+      await update(ref(db, 'settings/global'), { adminPassword: val });
+      await customAlert('비밀번호가 변경되었습니다.');
+      document.getElementById('adminNewPasswordInput').value = '';
+    });
+
+    const openQuizEditor = (idx) => {
+      const modal = document.getElementById('quizEditorModal');
+      modal.classList.remove('hidden');
+      const text = document.getElementById('customSelectText');
+      const hiddenInput = document.getElementById('quizEditorCorrect');
+      
+      if (idx === -1) {
+        document.getElementById('quizEditorTitle').innerText = "새 문제 추가";
+        document.getElementById('quizEditorIndex').value = -1;
+        document.getElementById('quizEditorText').value = "";
+        document.getElementById('quizEditorOpt0').value = "";
+        document.getElementById('quizEditorOpt1').value = "";
+        document.getElementById('quizEditorOpt2').value = "";
+        document.getElementById('quizEditorOpt3').value = "";
+        hiddenInput.value = "0";
+        if(text) text.innerText = "보기 1 (주황)";
+      } else {
+        const q = globalQuestions[idx];
+        document.getElementById('quizEditorTitle').innerText = `문제 ${idx + 1} 수정`;
+        document.getElementById('quizEditorIndex').value = idx;
+        document.getElementById('quizEditorText').value = q.question;
+        document.getElementById('quizEditorOpt0').value = q.options[0];
+        document.getElementById('quizEditorOpt1').value = q.options[1];
+        document.getElementById('quizEditorOpt2').value = q.options[2];
+        document.getElementById('quizEditorOpt3').value = q.options[3];
+        hiddenInput.value = q.correct;
+        const colorNames = ["주황", "파랑", "초록", "빨강"];
+        if(text) text.innerText = `보기 ${q.correct + 1} (${colorNames[q.correct]})`;
+      }
+    };
+
+    document.getElementById('btnAdminAddQuiz').addEventListener('click', () => openQuizEditor(-1));
+    document.getElementById('btnQuizEditorCancel').addEventListener('click', () => document.getElementById('quizEditorModal').classList.add('hidden'));
+
+    document.getElementById('btnQuizEditorSave').addEventListener('click', async () => {
+      const idx = parseInt(document.getElementById('quizEditorIndex').value);
+      const newQ = {
+        question: document.getElementById('quizEditorText').value,
+        options: [
+          document.getElementById('quizEditorOpt0').value,
+          document.getElementById('quizEditorOpt1').value,
+          document.getElementById('quizEditorOpt2').value,
+          document.getElementById('quizEditorOpt3').value
+        ],
+        correct: parseInt(document.getElementById('quizEditorCorrect').value)
+      };
+
+      if (!newQ.question || newQ.options.some(opt => !opt)) return customAlert("모든 칸을 입력해주세요.");
+
+      let newQuestions = [...globalQuestions];
+      if (idx === -1) newQuestions.push(newQ);
+      else newQuestions[idx] = newQ;
+
+      await set(ref(db, 'settings/questions'), newQuestions);
+      document.getElementById('quizEditorModal').classList.add('hidden');
+      document.getElementById('btnAdminLoginSubmit').click(); 
+    });
+
+    document.getElementById('btnTestBgmPlay').addEventListener('click', () => {
+       const url = document.getElementById('adminBgmUrlInput').value || defaultBgmUrl;
+       bgMusic.src = url;
+       bgMusic.play().catch(() => customAlert('오디오 재생 실패'));
+    });
+    document.getElementById('btnTestBgmPause').addEventListener('click', () => bgMusic.pause());
+
+    // ==============================================
+    // [호스트 로직]
+    // ==============================================
+    const setupHostSettingsUI = () => {
+      document.getElementById('hostBtnGameSettings').addEventListener('click', () => {
+        document.getElementById('hostSettingsPanel').classList.toggle('hidden');
+      });
+      document.getElementById('hsBtnClose').addEventListener('click', () => {
+        document.getElementById('hostSettingsPanel').classList.add('hidden');
+        if(currentGameId) update(ref(db, `games/${currentGameId}/settings`), hostGameSettings);
+      });
+
+      document.getElementById('hsLivesMinus').onclick = () => { if(hostGameSettings.maxLives>1) hostGameSettings.maxLives--; document.getElementById('hsLivesVal').innerText = hostGameSettings.maxLives; };
+      document.getElementById('hsLivesPlus').onclick = () => { if(hostGameSettings.maxLives<10) hostGameSettings.maxLives++; document.getElementById('hsLivesVal').innerText = hostGameSettings.maxLives; };
+
+      const toggleClasses = (el, val, onCol) => {
+        el.className = `w-12 h-6 rounded-full relative cursor-pointer transition-colors ${val ? onCol : 'bg-gray-500'}`;
+        el.firstChild.className = `absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${val ? 'right-1' : 'left-1'}`;
+      };
+
+      // 초기 UI 렌더링 동기화
+      toggleClasses(document.getElementById('hsToggleMute'), hostGameSettings.mutePlayers, 'bg-red-500');
+      toggleClasses(document.getElementById('hsToggleFS'), hostGameSettings.requireFullscreen, 'bg-blue-500');
+      toggleClasses(document.getElementById('hsToggleLate'), hostGameSettings.allowLateJoin, 'bg-green-500');
+
+      document.getElementById('hsToggleMute').onclick = (e) => { hostGameSettings.mutePlayers = !hostGameSettings.mutePlayers; toggleClasses(e.currentTarget, hostGameSettings.mutePlayers, 'bg-red-500'); };
+      document.getElementById('hsToggleFS').onclick = (e) => { hostGameSettings.requireFullscreen = !hostGameSettings.requireFullscreen; toggleClasses(e.currentTarget, hostGameSettings.requireFullscreen, 'bg-blue-500'); };
+      document.getElementById('hsToggleLate').onclick = (e) => { hostGameSettings.allowLateJoin = !hostGameSettings.allowLateJoin; toggleClasses(e.currentTarget, hostGameSettings.allowLateJoin, 'bg-green-500'); };
+      
+      document.getElementById('hsVolume').oninput = (e) => { 
+        hostGameSettings.volume = e.target.value; 
+        document.getElementById('hsVolumeText').innerText = `${e.target.value}%`;
+        bgMusic.volume = e.target.value / 100;
+      };
+    };
+    setupHostSettingsUI();
+
+    document.getElementById('hostBtnToggleMusic').addEventListener('click', () => {
+      const toggleBtn = document.getElementById('hostBtnToggleMusic');
+      if (bgMusic.paused) {
+        updateBgmForState(currentGameData?.status || 'lobby');
+        toggleBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+      } else {
+        bgMusic.pause();
+        toggleBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+      }
+    });
+
+    document.getElementById('hostBtnCopyLink').addEventListener('click', async () => {
+      const link = `${globalSettings.joinLink}?gameId=${currentGameId}`;
+      try {
+        await navigator.clipboard.writeText(link);
+      } catch(err) {
+        const textArea = document.createElement("textarea");
+        textArea.value = link;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try { document.execCommand('copy'); } catch(e) {}
+        textArea.remove();
+      }
+      const toast = document.getElementById('hostCopyToast');
+      toast.classList.remove('opacity-0');
+      setTimeout(() => toast.classList.add('opacity-0'), 2000);
+    });
+
+    document.getElementById('btnTestPlayer').addEventListener('click', () => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('gameId', currentGameId);
+      url.searchParams.set('testmode', '1');
+      window.open(url.toString(), '_blank', 'width=450,height=800');
+    });
+
+    document.getElementById('btnCreateHost').addEventListener('click', async () => {
+      cleanupListeners();
+      if (globalQuestions.length === 0) return customAlert("문제가 없습니다. 관리자 모드에서 퀴즈를 추가해주세요.");
+
+      currentGameId = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      const gameRef = ref(db, 'games/' + currentGameId);
+      await set(gameRef, {
+        id: currentGameId,
+        hostId: currentUser.uid,
+        status: 'lobby',
+        currentQuestionIndex: 0,
+        deadline: 0,
+        settings: hostGameSettings,
+        createdAt: Date.now()
+      });
+
+      unsubGame = onValue(ref(db, 'games/' + currentGameId), (snapshot) => {
+        currentGameData = snapshot.val();
+        if (currentGameData) handleHostStateChange();
+      });
+
+      unsubPlayers = onValue(ref(db, 'players'), (snapshot) => {
+        const val = snapshot.val() || {};
+        const allPlayers = Object.values(val);
+        currentPlayersList = allPlayers.filter(p => p.gameId === currentGameId);
+        updateHostLobbyPlayers();
+      });
+
+      document.getElementById('hostGameIdDisplay').innerText = currentGameId;
+      switchView('hostLobbyView');
+
+      bgMusic.volume = hostGameSettings.volume / 100;
+      updateBgmForState('lobby');
+      document.getElementById('hostBtnToggleMusic').innerHTML = '<i class="fas fa-volume-up"></i>';
+    });
+
+    const updateHostLobbyPlayers = () => {
+      if(currentGameData && currentGameData.status !== 'lobby') return;
+      
+      document.getElementById('hostPlayerCount').innerText = currentPlayersList.length;
+      
+      // 1명이라도 있으면 시작할 수 있도록 허용 (혼자 테스트 가능)
+      document.getElementById('hostBtnStart').disabled = currentPlayersList.length < 1; 
+      if(currentPlayersList.length < 1) document.getElementById('hostBtnStart').innerText = "대기 중...";
+      else document.getElementById('hostBtnStart').innerText = "DUEL 시작";
+      
+      const grid = document.getElementById('hostPlayerGrid');
+      grid.innerHTML = currentPlayersList.map(p => `
+        <div class="relative group bg-white/10 backdrop-blur-md text-white font-bold text-2xl px-5 py-3 rounded-2xl shadow-xl border border-white/20 flex items-center gap-3 animate-fade-in-up hover:bg-white/20 transition-colors">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center text-3xl shadow-inner border-2 border-white/30 ${p.avatar.bg}">
+            ${p.avatar.emoji}
+          </div>
+          <span class="mr-2 drop-shadow-md">${p.name}</span>
+          <button class="btn-kick absolute -top-3 -right-3 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg border-2 border-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 hover:scale-110" data-id="${p.id}" title="강제 퇴장">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('.btn-kick').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const playerId = e.currentTarget.dataset.id;
+          if(await customConfirm('이 플레이어를 강제 퇴장시키겠습니까?')) {
+            await remove(ref(db, 'players/' + playerId));
+          }
+        });
+      });
+    };
+
+    document.getElementById('hostBtnStart').addEventListener('click', async () => {
+      if (currentPlayersList.length < 1) return;
+      
+      currentPlayersList.forEach(p => {
+        update(ref(db, 'players/' + p.id), { 
+          lives: currentGameData.settings.maxLives, 
+          isDead: false,
+          score: 0,
+          hasAnswered: false 
+        });
+      });
+
+      await update(ref(db, 'games/' + currentGameId), { 
+        status: 'playing', 
+        currentQuestionIndex: 0,
+        deadline: Date.now() + (TIME_LIMIT * 1000)
+      });
+    });
+
+    const handleHostStateChange = () => {
+      if(!currentGameData) return;
+      updateBgmForState(currentGameData.status); 
+      
+      if (currentGameData.status === 'playing') {
+        switchView('hostPlayingView');
+        startHostTimer();
+        renderHostQuestion();
+      } else if (currentGameData.status === 'result') {
+        switchView('hostResultView');
+        renderHostResult();
+      } else if (currentGameData.status === 'end') {
+        switchView('hostEndView');
+        renderHostEnd();
+      }
+    };
+
+    const evaluateDuelRound = async () => {
+      const alivePlayers = currentPlayersList.filter(p => !p.isDead);
+      const answers = alivePlayers.filter(p => p.hasAnswered);
+      const correctAnswers = answers.filter(p => p.lastAnswerCorrect);
+      
+      correctAnswers.sort((a, b) => a.answerTime - b.answerTime);
+      const winner = correctAnswers.length > 0 ? correctAnswers[0] : null;
+
+      const updates = {};
+      alivePlayers.forEach(p => {
+        if (winner && p.id === winner.id) {
+          updates[`players/${p.id}/score`] = p.score + 1;
+          updates[`players/${p.id}/isWinner`] = true;
+        } else {
+          const newLives = Math.max(0, p.lives - 1);
+          updates[`players/${p.id}/lives`] = newLives;
+          updates[`players/${p.id}/isWinner`] = false;
+          if (newLives === 0) updates[`players/${p.id}/isDead`] = true;
+        }
+      });
+      
+      updates[`games/${currentGameId}/status`] = 'result';
+      await update(ref(db), updates);
+    };
+
+    const startHostTimer = () => {
+      if (hostTimerInterval) clearInterval(hostTimerInterval);
+      
+      hostTimerInterval = setInterval(() => {
+        const remaining = Math.max(0, Math.ceil((currentGameData.deadline - Date.now()) / 1000));
+        document.getElementById('hostTimerText').innerText = remaining;
+        
+        const circle = document.getElementById('hostTimerCircle');
+        const offset = 283 - (283 * (remaining / TIME_LIMIT));
+        circle.style.strokeDashoffset = offset;
+
+        const aliveCount = currentPlayersList.filter(p=>!p.isDead).length;
+        const answeredCount = currentPlayersList.filter(p => !p.isDead && p.hasAnswered).length;
+        document.getElementById('hostAnsweredCount').innerText = answeredCount;
+        document.getElementById('hostTotalCount').innerText = `/ ${aliveCount}`;
+
+        if ((remaining === 0 || (answeredCount > 0 && answeredCount === aliveCount)) && currentGameData.status === 'playing') {
+          clearInterval(hostTimerInterval);
+          evaluateDuelRound();
+        }
+      }, 500); 
+    };
+
+    const renderHostQuestion = () => {
+      const q = globalQuestions[currentGameData.currentQuestionIndex];
+      if (!q) return; 
+      
+      document.getElementById('hostQuestionProgress').innerText = `ROUND ${currentGameData.currentQuestionIndex + 1}`;
+      document.getElementById('hostPlayingGameId').innerText = `ID: ${currentGameId}`;
+      document.getElementById('hostQuestionText').innerText = q.question;
+      
+      const optsGrid = document.getElementById('hostOptionsGrid');
+      optsGrid.innerHTML = q.options.map((opt, idx) => `
+        <div class="${OPTION_COLORS[idx]} flex items-center justify-center text-white text-3xl md:text-5xl font-bold shadow-inner rounded-[30px] border border-white/20">
+          ${opt}
+        </div>
+      `).join('');
+    };
+
+    document.getElementById('hostBtnSkip').addEventListener('click', () => {
+      evaluateDuelRound();
+    });
+
+    const renderHostResult = () => {
+      const winner = currentPlayersList.find(p => p.isWinner);
+      
+      if(winner) {
+        document.getElementById('hostRoundWinnerTitle').innerHTML = `WINNER: <span class="text-[#00c2cb]">${winner.name}</span>`;
+      } else {
+        document.getElementById('hostRoundWinnerTitle').innerHTML = `<span class="text-red-500">NO WINNER</span>`;
+      }
+
+      const q = globalQuestions[currentGameData.currentQuestionIndex];
+      const resGrid = document.getElementById('hostResultGrid');
+      
+      resGrid.innerHTML = q.options.map((opt, idx) => {
+        const isCorrect = idx === q.correct;
+        const count = currentPlayersList.filter(p => !p.isDead && p.lastAnswerIdx === idx).length;
+        return `
+          <div class="${OPTION_COLORS[idx]} flex flex-col items-center justify-center rounded-[40px] p-6 ${isCorrect ? 'ring-[12px] ring-yellow-400 scale-[1.02] z-10' : 'opacity-30'} shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+            <div class="text-4xl text-white font-black mb-4 drop-shadow-md">${opt}</div>
+            ${isCorrect ? '<i class="fas fa-check text-[80px] text-yellow-300 mb-2 drop-shadow-md"></i>' : ''}
+            <div class="text-[100px] font-black text-white drop-shadow-xl leading-none">${count}</div>
+          </div>
+        `;
+      }).join('');
+    };
+
+    document.getElementById('hostBtnNext').addEventListener('click', async () => {
+      const nextIdx = currentGameData.currentQuestionIndex + 1;
+      const gameRef = ref(db, 'games/' + currentGameId);
+      
+      const alivePlayers = currentPlayersList.filter(p=>!p.isDead);
+      
+      let isGameOver = false;
+      if (nextIdx >= globalQuestions.length) isGameOver = true;
+      else if (currentPlayersList.length === 1 && alivePlayers.length === 0) isGameOver = true;
+      else if (currentPlayersList.length > 1 && alivePlayers.length <= 1) isGameOver = true;
+
+      if (isGameOver) {
+        await update(gameRef, { status: 'end' });
+      } else {
+        currentPlayersList.forEach(p => {
+          update(ref(db, 'players/' + p.id), { hasAnswered: false });
+        });
+        await update(gameRef, { 
+          status: 'playing', 
+          currentQuestionIndex: nextIdx,
+          deadline: Date.now() + (TIME_LIMIT * 1000)
+        });
+      }
+    });
+
+    const renderHostEnd = () => {
+      const sorted = [...currentPlayersList].sort((a, b) => {
+         if(b.lives !== a.lives) return b.lives - a.lives;
+         return b.score - a.score;
+      });
+      const board = document.getElementById('hostLeaderboard');
+      
+      board.innerHTML = sorted.map((p, idx) => {
+        let badgeColor = 'bg-white/10 text-white border-white/20';
+        if (idx === 0) badgeColor = 'bg-yellow-400 text-yellow-900 border-yellow-300';
+        else if (idx === 1) badgeColor = 'bg-gray-300 text-gray-800 border-gray-200';
+        else if (idx === 2) badgeColor = 'bg-orange-400 text-orange-900 border-orange-300';
+
+        const statusLabel = p.isDead ? '<span class="bg-red-500/20 text-red-400 px-3 py-1 rounded-lg text-sm border border-red-500/50">ELIMINATED</span>' : '<span class="bg-green-500/20 text-green-400 px-3 py-1 rounded-lg text-sm border border-green-500/50">SURVIVED</span>';
+
+        return `
+          <div class="bg-white/10 backdrop-blur-xl rounded-[30px] p-6 flex items-center justify-between shadow-2xl border border-white/20 transform transition-transform hover:scale-105">
+            <div class="flex items-center gap-6">
+              <div class="w-20 h-20 rounded-2xl flex items-center justify-center text-5xl font-black border-4 shadow-inner ${badgeColor}">${idx + 1}</div>
+              <div class="text-6xl px-4 py-2 rounded-2xl shadow-inner border-2 border-white/30 ${p.avatar.bg}">${p.avatar.emoji}</div>
+              <div class="flex flex-col">
+                <div class="text-4xl font-black text-white drop-shadow-md mb-1">${p.name}</div>
+                <div>${statusLabel}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-8">
+               <div class="text-4xl font-black text-red-400 drop-shadow-md">❤️ ${p.lives}</div>
+               <div class="text-5xl font-black text-yellow-300 drop-shadow-md">⭐ ${p.score}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    };
+
+
+    // ==============================================
+    // [플레이어 로직]
+    // ==============================================
+    document.getElementById('btnJoinPlayer').addEventListener('click', () => {
+      cleanupListeners();
+      document.getElementById('playerJoinStep1').classList.remove('hidden');
+      document.getElementById('playerJoinStep2').classList.add('hidden');
+      document.getElementById('playerInputId').value = '';
+      document.getElementById('playerInputName').value = '';
+      document.getElementById('playerErrorText').classList.add('hidden');
+      switchView('playerJoinView');
+    });
+
+    document.getElementById('playerBtnCheckId').addEventListener('click', async () => {
+      const inputId = document.getElementById('playerInputId').value.trim();
+      if (!inputId) return;
+
+      const snapshot = await get(ref(db, 'games/' + inputId));
+      if (snapshot.exists() && snapshot.val().status !== 'end') {
+          currentGameData = snapshot.val();
+          
+          if (!currentGameData.settings.allowLateJoin && currentGameData.status !== 'lobby') {
+             return customAlert("호스트가 중도 참가를 허용하지 않았습니다.");
+          }
+
+          currentGameId = inputId;
+          document.getElementById('playerJoinStep1').classList.add('hidden');
+          document.getElementById('playerJoinStep2').classList.remove('hidden');
+      } else {
+          document.getElementById('playerErrorText').classList.remove('hidden');
+      }
+    });
+
+    document.getElementById('playerBtnJoinLobby').addEventListener('click', async () => {
+      const name = document.getElementById('playerInputName').value.trim();
+      if (!name || !currentGameData) return;
+
+      // 이름 중복 검사
+      const snap = await get(ref(db, 'players'));
+      const playersVal = snap.val() || {};
+      const existingPlayersInGame = Object.values(playersVal).filter(p => p.gameId === currentGameId);
+      
+      if (existingPlayersInGame.some(p => p.name === name)) {
+         return customAlert("이미 사용 중인 이름입니다.");
+      }
+
+      // 아바타 중복 배제 후 기본 선택
+      const takenAvatarIds = existingPlayersInGame.map(p => p.avatar?.id);
+      selectedBlook = UNLOCKED_BLOOKS.find(b => !takenAvatarIds.includes(b.id)) || UNLOCKED_BLOOKS[0];
+
+      const pRef = ref(db, 'players/' + currentUser.uid);
+      
+      const newPlayer = {
+        id: currentUser.uid,
+        gameId: currentGameId,
+        name: name,
+        avatar: selectedBlook,
+        score: 0,
+        lives: currentGameData.settings.maxLives || 3,
+        isDead: false,
+        isWinner: false,
+        hasAnswered: false,
+        lastAnswerCorrect: false,
+        lastAnswerIdx: -1,
+        answerTime: 0,
+        joinedAt: Date.now()
+      };
+      
+      await set(pRef, newPlayer);
+      currentPlayerData = newPlayer;
+
+      unsubMe = onValue(pRef, async (snapshot) => {
+        if (snapshot.exists()) {
+          currentPlayerData = snapshot.val();
+          updatePlayerUI();
+        } else {
+          if (currentGameData && currentGameData.status !== 'end') {
+            await customAlert("호스트에 의해 강제 퇴장되었습니다.");
+            exitToHome();
+          }
+        }
+      });
+
+      unsubPlayers = onValue(ref(db, 'players'), (snapshot) => {
+        const val = snapshot.val() || {};
+        currentPlayersList = Object.values(val).filter(p => p.gameId === currentGameId);
+        if (currentGameData && currentGameData.status === 'lobby') {
+            renderPlayerAvatarGrid();
+        }
+      });
+
+      unsubGame = onValue(ref(db, 'games/' + currentGameId), (snapshot) => {
+        if (snapshot.exists()) {
+          const oldStatus = currentGameData.status;
+          currentGameData = snapshot.val();
+          
+          if (currentGameData.settings.requireFullscreen) {
+             document.getElementById('btnGlobalFullscreen').classList.add('hidden');
+             if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e=>{});
+          } else {
+             document.getElementById('btnGlobalFullscreen').classList.remove('hidden');
+          }
+
+          if (currentGameData.status !== oldStatus) {
+             handlePlayerStateChange();
+          } else {
+             updateBgmForState(currentGameData.status); 
+          }
+        }
+      });
+
+      renderPlayerAvatarGrid();
+      updatePlayerPreview();
+      
+      if(currentGameData.status === 'playing') switchView('playerPlayingView');
+      else switchView('playerLobbyView');
+    });
+
+    const renderPlayerAvatarGrid = () => {
+      const grid = document.getElementById('playerAvatarGrid');
+      const takenAvatarIds = currentPlayersList.filter(p => p.id !== currentUser.uid).map(p => p.avatar?.id);
+
+      let html = UNLOCKED_BLOOKS.map(b => {
+        if (takenAvatarIds.includes(b.id)) {
+            return `<div class="aspect-square rounded-[20px] bg-black/60 flex items-center justify-center text-4xl shadow-inner border border-white/10 opacity-50 cursor-not-allowed grayscale relative" title="다른 플레이어가 선택함">
+              ${b.emoji} <i class="fas fa-ban absolute text-red-500 text-5xl opacity-80"></i>
+            </div>`;
+        } else {
+            return `<button class="blook-btn aspect-square rounded-[20px] flex items-center justify-center text-4xl shadow-md transition-transform hover:scale-110 hover:z-10 border-2 border-white/30 ${b.bg}" data-id="${b.id}">
+              ${b.emoji}
+            </button>`;
+        }
+      }).join('');
+      
+      html += LOCKED_BLOOKS.map(() => `
+        <div class="aspect-square rounded-[20px] bg-black/40 flex items-center justify-center text-white/30 shadow-inner border border-white/10">
+          <i class="fas fa-lock text-2xl"></i>
+        </div>
+      `).join('');
+      
+      grid.innerHTML = html;
+
+      grid.querySelectorAll('.blook-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const targetBtn = e.target.closest('button');
+          const id = parseInt(targetBtn.dataset.id);
+          const blook = UNLOCKED_BLOOKS.find(b => b.id === id);
+          if (blook) {
+            selectedBlook = blook;
+            updatePlayerPreview();
+            if (currentGameData && currentGameData.status === 'lobby') {
+              await update(ref(db, 'players/' + currentUser.uid), { avatar: blook });
+            }
+          }
+        });
+      });
+    };
+
+    const updatePlayerPreview = () => {
+      document.getElementById('playerHeaderName').innerText = currentPlayerData.name;
+      document.getElementById('previewAvatarName').innerText = selectedBlook.name;
+      document.getElementById('previewAvatarRarity').innerText = selectedBlook.rarity;
+      
+      const iconBox = document.getElementById('previewAvatarIcon');
+      iconBox.innerText = selectedBlook.emoji;
+      iconBox.className = `w-48 h-48 rounded-[40px] flex items-center justify-center text-[100px] shadow-2xl border-4 border-white relative z-10 transform translate-y-6 ${selectedBlook.bg}`;
+    };
+
+    const handlePlayerStateChange = () => {
+      if(!currentGameData || !currentPlayerData) return;
+      updateBgmForState(currentGameData.status);
+
+      if (currentGameData.status === 'playing') {
+        switchView('playerPlayingView');
+        renderPlayerPlaying();
+      } else if (currentGameData.status === 'result') {
+        switchView('playerResultView');
+        renderPlayerResult();
+      } else if (currentGameData.status === 'end') {
+        switchView('playerEndView');
+        renderPlayerEnd();
+      }
+    };
+
+    const updatePlayerUI = () => {
+      if (currentGameData && currentGameData.status === 'playing') {
+        renderPlayerPlaying(); 
+      }
+    };
+
+    const renderPlayerPlaying = () => {
+      if (currentPlayerData.isDead) {
+        document.getElementById('playerAliveScreen').classList.add('hidden');
+        document.getElementById('playerDeadScreen').classList.remove('hidden');
+        document.getElementById('playerDeadScreen').classList.add('flex');
+        return;
+      } else {
+        document.getElementById('playerAliveScreen').classList.remove('hidden');
+        document.getElementById('playerDeadScreen').classList.add('hidden');
+        document.getElementById('playerDeadScreen').classList.remove('flex');
+      }
+
+      const q = globalQuestions[currentGameData.currentQuestionIndex];
+      if (!q) return;
+      
+      document.getElementById('playerIngameName').innerText = currentPlayerData.name;
+      document.getElementById('playerIngameScore').innerText = currentPlayerData.score;
+      
+      let heartsHtml = '';
+      for(let i=0; i<currentPlayerData.lives; i++) heartsHtml += '<i class="fas fa-heart heart-beat"></i>';
+      document.getElementById('playerHeartsContainer').innerHTML = heartsHtml;
+
+      const avatarBox = document.getElementById('playerIngameAvatar');
+      avatarBox.innerText = currentPlayerData.avatar.emoji;
+      avatarBox.className = `text-3xl w-14 h-14 flex items-center justify-center rounded-xl border-2 border-white/30 shadow-inner ${currentPlayerData.avatar.bg}`;
+
+      document.getElementById('playerQuestionText').innerText = q.question;
+
+      if (currentPlayerData.hasAnswered) {
+        document.getElementById('playerQuestionContainer').classList.add('hidden');
+        document.getElementById('playerOptionsGrid').classList.add('hidden');
+        document.getElementById('playerWaitingBox').classList.remove('hidden');
+      } else {
+        document.getElementById('playerWaitingBox').classList.add('hidden');
+        document.getElementById('playerQuestionContainer').classList.remove('hidden');
+        const grid = document.getElementById('playerOptionsGrid');
+        grid.classList.remove('hidden');
+        grid.innerHTML = q.options.map((opt, idx) => `
+          <button class="ans-btn ${OPTION_COLORS[idx]} transition-all active:scale-[0.92] text-white text-3xl font-black shadow-[0_10px_20px_rgba(0,0,0,0.3)] rounded-[30px] flex items-center justify-center min-h-[160px] border border-white/20" data-idx="${idx}">
+            ${opt}
+          </button>
+        `).join('');
+
+        grid.querySelectorAll('.ans-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            if(currentPlayerData.hasAnswered) return;
+            const idx = parseInt(e.target.closest('button').dataset.idx);
+            const isCorrect = (idx === q.correct);
+
+            await update(ref(db, 'players/' + currentUser.uid), {
+              hasAnswered: true,
+              lastAnswerCorrect: isCorrect,
+              lastAnswerIdx: idx,
+              answerTime: Date.now() 
+            });
+          });
+        });
+      }
+    };
+
+    const renderPlayerResult = () => {
+      const view = document.getElementById('playerResultView');
+      const box = document.getElementById('playerResultAnimBox');
+      const icon = document.getElementById('playerResultIcon');
+      const text = document.getElementById('playerResultText');
+      const sub = document.getElementById('playerResultSubText');
+      const effect = document.getElementById('playerResultEffect');
+
+      box.classList.remove('scale-100');
+      box.classList.add('scale-95');
+
+      if (currentPlayerData.isWinner) {
+        view.className = "hidden min-h-screen flex-col items-center justify-center text-white transition-colors duration-500 bg-green-500";
+        icon.innerText = '😎';
+        text.innerText = 'WIN!';
+        sub.innerText = '가장 빨리 정답을 맞혔습니다.';
+        effect.innerText = '점수 +1 ⭐';
+        effect.parentElement.classList.remove('text-red-400');
+      } else {
+        view.className = "hidden min-h-screen flex-col items-center justify-center text-white transition-colors duration-500 bg-red-600";
+        icon.innerText = '💀';
+        
+        if (currentPlayerData.hasAnswered && currentPlayerData.lastAnswerCorrect) {
+           text.innerText = 'TOO SLOW';
+           sub.innerText = '정답이지만 다른 플레이어가 더 빨랐습니다.';
+        } else if (currentPlayerData.hasAnswered) {
+           text.innerText = 'WRONG';
+           sub.innerText = '오답입니다.';
+        } else {
+           text.innerText = 'TIME OUT';
+           sub.innerText = '시간이 초과되었습니다.';
+        }
+        
+        effect.innerText = '목숨 -1 ❤️';
+        effect.parentElement.classList.add('text-red-400');
+      }
+
+      view.classList.remove('hidden'); 
+      view.classList.add('flex');
+
+      setTimeout(() => {
+        box.classList.remove('scale-95');
+        box.classList.add('scale-100');
+      }, 50);
+    };
+
+    const renderPlayerEnd = () => {
+      document.getElementById('playerFinalName').innerText = currentPlayerData.name;
+      document.getElementById('playerFinalScore').innerText = currentPlayerData.score;
+      const avatarBox = document.getElementById('playerFinalAvatar');
+      avatarBox.innerText = currentPlayerData.avatar.emoji;
+      avatarBox.className = `text-[100px] w-48 h-48 flex items-center justify-center rounded-3xl mb-8 border-4 border-white/30 shadow-inner drop-shadow-lg ${currentPlayerData.avatar.bg}`;
+    };
+
+  </script>
+</body>
+</html>
